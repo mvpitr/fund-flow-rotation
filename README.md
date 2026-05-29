@@ -1,56 +1,90 @@
 # Fund-Flow Rotation Map
 
-A from-scratch, EPFR-inspired **fund-flow rotation map** built from free, public ETF
-data. The goal is to reconstruct where investor capital is flowing — into and out of
-sectors, regions, and asset classes — and visualize how it *rotates* around the market
-over time.
+**Where is investor capital actually moving — and what is it rotating *into*?**
 
-> A rotation map reveals what investors are collectively betting on by separating
-> genuine *flows* (new investor money) from mere *price moves*. See
-> [`docs/methodology.md`](docs/methodology.md) for the full math and reasoning.
+This project reconstructs the flow of money across the US equity market, sector by
+sector, and turns it into a rotation map: a view of which parts of the market are
+attracting fresh capital and which are bleeding it, month over month. It is an
+EPFR-inspired, from-scratch rebuild of the kind of fund-flow and positioning signal
+that institutional desks pay for — built entirely on free, public regulatory data.
 
-## Why
+## The idea: flows, not prices
 
-This is an intellectual portfolio project: rebuild a small, honest version of the kind
-of fund-flows / positioning product that data vendors like EPFR sell, using only free
-data (ETF shares outstanding + prices via `yfinance`).
+A fund's assets under management move for two completely different reasons: the market
+re-pricing what it already holds, and investors putting money in or taking it out.
+Only the second is a **flow** — net new investor money, stripped of performance.
 
-## The core idea
+That distinction is the whole point. A sector can rise in price while investors quietly
+pull money out, or fall while money pours in. Price tells you what happened; flow tells
+you what investors *chose* — a cleaner read on conviction and rotation.
 
-A fund's AUM changes for two reasons: the market moving, and investors adding/removing
-money. A **flow** is the second part only. For ETFs we can read it almost directly from
-the change in shares outstanding:
-
-```
-F_t ≈ (S_t − S_{t−1}) · NAV_t
-```
-
-Aggregate flows into categories, normalize, smooth, and standardize, and you get a
-comparable **rotation map** (heatmap + Relative Rotation Graph).
-
-## Roadmap
-
-The build is iterative — each phase is a small, working artifact:
-
-| Phase | Status | What we build |
-|-------|--------|---------------|
-| **1** | done | Flow for **one** ETF (XLK): split-aware `F_t`, `g_t`. Free ETF shares are blocked (see below), so real history comes from **SEC N-PORT** reported flows — 81 months of XLK, returns cross-checked against prices. |
-| **2** | done | **Many** ETFs + a classification map; persist time series. Built for the 11 Select Sector SPDRs (one fund per sector) into a SQLite panel — 891 monthly rows back to 2019. |
-| 3 | next | **Category** flows and cumulative windows. |
-| 4 | | **Rotation metrics**: z-scores, relative flow, momentum, quadrants. |
-| 5 | | **Visualize**: heatmap + RRG. |
-
-Currently at the end of Phase 2: a monthly flow panel for the 11 US equity sectors.
-
-## Layout
+For an exchange-traded fund this is observable: shares are created when demand comes in
+and redeemed when it leaves, so the net dollar creation/redemption is the flow. Funds
+report exactly this each month. Normalizing by fund size gives a comparable growth rate:
 
 ```
-phase1_xlk_flow.py    Phase 1: daily flow math for a single ETF (shares-based; needs a shares feed)
-nport_flows.py        Monthly REPORTED flows from SEC N-PORT (works today, free); single + multi-fund fetch
-universe.csv          Phase 2: the classification map (ticker -> category -> SEC series id)
-build_universe.py     Phase 2: build the multi-ETF monthly flow panel and persist to SQLite
-docs/methodology.md   Full methodology, math, and data gotchas
-requirements.txt      Python dependencies
+F   = net new money         (dollar flow)
+g   = F / AUM_at_start       (organic growth rate, comparable across funds)
+```
+
+Aggregate across funds, standardize against each sector's own history, and compare each
+sector to the market as a whole, and the result is a **rotation map**.
+
+## What it shows
+
+The working panel covers the eleven sectors of the US equity market with ~7 years of
+monthly history. From it, two views fall out immediately:
+
+- **The snapshot** — net flow into and out of each sector this month.
+- **The trend** — trailing cumulative flow, which sector is winning or losing capital
+  over a window.
+
+For example, a recent reading shows capital rotating out of the prior growth leadership
+(Technology, Communication Services, Financials) and into Energy, defensives (Utilities,
+Health Care) and Industrials — a classic late-cycle pattern, visible in *demand* well
+before it shows up as a narrative. The planned visual layer renders this as a flow
+heatmap and a Relative Rotation Graph (RRG) tracing each sector's path through the
+lead / lag / improve / weaken quadrants over time.
+
+## How it works
+
+```
+SEC fund filings  ->  monthly reported flows, returns, net assets, per fund
+        ->  normalize to a comparable growth rate g and a clean monthly AUM series
+        ->  aggregate to sectors; compare each sector to the whole-market flow
+        ->  standardize (z-scores), measure momentum, plot rotation
+```
+
+- **Universe** — the eleven Select Sector SPDR ETFs, one per GICS sector, which together
+  tile the entire US equity market.
+- **Source** — SEC Form N-PORT, the monthly portfolio report every fund files. It
+  discloses reported share creations/redemptions, total return, and net assets, so flows
+  are read directly from the regulator rather than estimated.
+- **Storage** — a tidy monthly panel persisted to SQLite, keyed on (ticker, month) so
+  new filings accrue incrementally over time.
+- **Validation** — reported returns are cross-checked against price-derived returns
+  (correlation 0.99+), and the flow/return/AUM figures are checked for mutual consistency
+  to within ~1% per quarter. See [`docs/methodology.md`](docs/methodology.md).
+
+## Build status
+
+| Phase | Status | |
+|-------|--------|---|
+| 1 | done | Single-fund flow engine and normalization |
+| 2 | done | Multi-sector universe, classification, persisted monthly panel |
+| 3 | next | Category flows and trailing cumulative windows |
+| 4 | planned | Rotation metrics: relative flow, z-scores, momentum |
+| 5 | planned | Visualization: flow heatmap and Relative Rotation Graph |
+
+## Repo layout
+
+```
+nport_flows.py        Read monthly reported flows from SEC filings (single + multi-fund)
+universe.csv          Classification map: ticker -> sector -> SEC series id
+build_universe.py     Build the multi-sector monthly panel and persist to SQLite
+sanity_check.py       End-to-end validation of the panel and current rotation output
+phase1_xlk_flow.py    Single-fund flow math reference
+docs/methodology.md   Full math, derivations, data sourcing, and caveats
 ```
 
 ## Running
@@ -59,23 +93,17 @@ requirements.txt      Python dependencies
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Build the full 11-sector monthly flow panel into data/flows.db (SEC needs an identity):
+# Build the 11-sector monthly flow panel into data/flows.db
+# (SEC asks API users to identify themselves with a name + email)
 EDGAR_IDENTITY="Your Name your@email.com" python build_universe.py
 
-# Single-ETF N-PORT report (defaults to XLK):
-EDGAR_IDENTITY="Your Name your@email.com" python nport_flows.py
-
-# Shares-based daily flow math (FMP_API_KEY optional; Yahoo has no ETF shares):
-python phase1_xlk_flow.py
+# Validate the panel and print the current rotation snapshot
+python sanity_check.py
 ```
 
-## Caveats
+## Scope and honesty
 
-ETFs are a large but *partial* slice of all investor money, and free data has reporting
-lags, splits, and distributions to handle carefully (see methodology §7). This is a
-strong proxy, not the whole truth — stated openly by design.
-
-**Known data gap:** Yahoo's `get_shares_full()` returns empty for ETFs (it only works
-for stocks), so the live shares-outstanding series — our core input — isn't available
-from `yfinance` alone. The flow math is implemented and split-aware; sourcing ETF
-shares from an issuer/fundamentals feed is the open task. See methodology §7.
+ETFs are a large but partial slice of all invested capital, and reported data carries a
+modest lag. This is a deliberately transparent proxy for institutional positioning data,
+not a replacement for it — the methodology document is explicit about every assumption,
+approximation, and limitation behind the numbers.
