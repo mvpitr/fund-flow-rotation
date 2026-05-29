@@ -128,6 +128,35 @@ NAV_t   = $50
 F_t = (10.2M - 10.0M) * 50 = 0.2M * 50 = $10M inflow
 ```
 
+### 2e. Reading *reported* flows from Form N-PORT (our backfill source)
+
+Methods 2a/2b *estimate* flow from things we can see (AUM, shares, NAV). But there
+is a source where the fund reports its flow almost directly: the SEC's **Form
+N-PORT**, which every US ETF and mutual fund files monthly. For each of the three
+months in a reporting period it discloses:
+
+- **Item B.8 — flow activity:** total `sales` (creations), `redemptions`, and
+  `reinvestment` of fund shares, in dollars. Net flow is `F = sales − redemptions`
+  (reinvestment is internal dividend recycling, ~0 for ETFs).
+- **Item B.7 — monthly total return** (already includes distributions).
+- **Item B.1 — net assets** (AUM) at the period end.
+
+This sidesteps the no-free-ETF-shares problem entirely (§7): instead of inferring
+`ΔS`, we read the regulator-collected flow. Trade-offs: **monthly** granularity and
+a **~2-month reporting lag** (filings post ~60 days after quarter-end), vs. the
+daily-but-blocked shares method. So N-PORT is our **historical backfill**; the
+shares/AUM methods remain the path for daily, going-forward data.
+
+**Two validations we actually ran (XLK, 81 months back to 2019-07):**
+
+1. N-PORT's reported monthly total return vs. the price-derived monthly return
+   matches to ~0.01–0.03 pp — confirming the data and the month-ordering.
+2. Rolling the AUM identity (§2a) forward from a single early `net_assets` anchor
+   re-hits later reported `net_assets` to within ~3.6% median over 27 quarter-end
+   anchors — independent confirmation that flows and returns are mutually consistent.
+   (Re-anchoring at each report would tighten this; we keep the single-anchor roll
+   as an honest drift diagnostic.)
+
 ---
 
 ## 3. Normalizing flows
@@ -284,6 +313,8 @@ story.
   but its FREE tier returns only the **current** snapshot — the historical-shares /
   historical-market-cap endpoints are premium. So free APIs enable a snapshot-forward
   series, not a backfill; real daily history needs a paid tier or issuer files.
+  **Resolution:** for free historical backfill we read *reported* monthly flows from
+  Form N-PORT instead (§2e); the shares methods stay the daily/forward path.
 - **Representativeness caveat.** ETFs are a large but *partial* slice of all
   investor money (EPFR also covers mutual funds, which are bigger in some markets).
   Our ETF-only map is a strong proxy, not the whole truth — worth stating openly.
@@ -319,10 +350,10 @@ Each phase is a small, working, demoable artifact. We do them in order.
 
 | Phase | What we build | Math used |
 |-------|---------------|-----------|
-| 1 | Flow for **one** ETF: pull `S_t`, `NAV_t`; compute `F_t`, `g_t`. Sanity-check against a known source. | §2, §3 |
+| 1 ✅ | Flow for **one** ETF: split-aware `F_t`, `g_t`. Free ETF shares turned out to be blocked (§7), so real history comes from N-PORT reported flows (§2e) — 81 months of XLK, returns cross-checked. | §2, §3 |
 | 2 | **Many** ETFs + a classification map; store time series in a database. | §2, §4 |
 | 3 | **Category** flows: `F_{c,t}`, `g_{c,t}`, cumulative windows. | §4, §5a |
 | 4 | **Rotation metrics**: z-scores, relative flow, momentum, quadrants. | §5b–§5e |
 | 5 | **Visualize**: heatmap + RRG. | §6 |
 
-We are at Phase 1.
+Phase 1 is complete (with real N-PORT-sourced history); next is Phase 2.

@@ -34,7 +34,7 @@ The build is iterative — each phase is a small, working artifact:
 
 | Phase | What we build |
 |-------|---------------|
-| **1** ✅ | Flow for **one** ETF (XLK): pull shares & price, compute split-aware `F_t`, `g_t`. |
+| **1** ✅ | Flow for **one** ETF (XLK): split-aware `F_t`, `g_t`. Free ETF shares are blocked (see below), so real history comes from **SEC N-PORT** reported flows — 81 months of XLK, returns cross-checked against prices. |
 | 2 | **Many** ETFs + a classification map; persist time series. |
 | 3 | **Category** flows and cumulative windows. |
 | 4 | **Rotation metrics**: z-scores, relative flow, momentum, quadrants. |
@@ -45,7 +45,8 @@ Currently at the end of Phase 1.
 ## Layout
 
 ```
-phase1_xlk_flow.py    Phase 1: reconstruct daily flows for a single ETF (XLK)
+phase1_xlk_flow.py    Phase 1: daily flow math for a single ETF (shares-based; needs a shares feed)
+nport_flows.py        Phase 1 backfill: monthly REPORTED flows from SEC N-PORT (works today, free)
 docs/methodology.md   Full methodology, math, and data gotchas
 requirements.txt      Python dependencies
 ```
@@ -55,6 +56,11 @@ requirements.txt      Python dependencies
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+
+# Real, free historical flows for XLK (SEC requires an identity string):
+EDGAR_IDENTITY="Your Name your@email.com" python nport_flows.py
+
+# Shares-based daily flow math (FMP_API_KEY optional; Yahoo has no ETF shares):
 python phase1_xlk_flow.py
 ```
 
