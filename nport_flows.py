@@ -101,10 +101,14 @@ def fetch_many(series_to_ticker, anchor_ticker="XLK"):
 
 
 def reconstruct_aum(df):
-    """Roll a continuous monthly AUM via the identity AUM_t = AUM_{t-1}(1+r_t)+F_t,
-    anchored on the first reported net_assets (methodology 2a), then g_t=F_t/AUM_{t-1}.
-    Net assets are reported only at quarter-ends, so rolling the identity forward
-    fills the gaps — and re-hitting the later anchors is a built-in accuracy check."""
+    """Build a continuous monthly AUM, then g_t = F_t / AUM_{t-1} (methodology 2a).
+
+    Net assets are reported only at quarter-ends, so we SNAP to each reported value
+    (re-anchor) and roll the identity AUM_t = AUM_{t-1}(1+r_t)+F_t only across the two
+    in-between months. Re-anchoring every quarter is important: N-PORT's r_t is a
+    TOTAL return (includes distributions), but distributions paid out actually leave
+    the fund, so a long single-anchor roll over-states AUM for high-yield sectors.
+    Snapping each quarter bounds that bias to <= one quarter (methodology 2f)."""
     df = df.copy()
     anchor = df["net_assets"].first_valid_index()
     if anchor is None:
@@ -112,8 +116,10 @@ def reconstruct_aum(df):
         return df
     aum, prev = {}, None
     for dt, row in df.loc[anchor:].iterrows():
-        r = (row["ret_pct"] or 0) / 100.0
-        aum[dt] = df.loc[anchor, "net_assets"] if prev is None else aum[prev] * (1 + r) + row["F"]
+        if pd.notna(row["net_assets"]):
+            aum[dt] = row["net_assets"]                       # re-anchor to reported truth
+        else:
+            aum[dt] = aum[prev] * (1 + (row["ret_pct"] or 0) / 100.0) + row["F"]
         prev = dt
     df["aum"] = pd.Series(aum)
     df["aum_prev"] = df["aum"].shift(1)

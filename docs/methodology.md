@@ -147,15 +147,33 @@ a **~2-month reporting lag** (filings post ~60 days after quarter-end), vs. the
 daily-but-blocked shares method. So N-PORT is our **historical backfill**; the
 shares/AUM methods remain the path for daily, going-forward data.
 
-**Two validations we actually ran (XLK, 81 months back to 2019-07):**
+**Two validations we actually ran (all 11 sectors, 81 months back to 2019-07; see
+`sanity_check.py`):**
 
 1. N-PORT's reported monthly total return vs. the price-derived monthly return
-   matches to ~0.01–0.03 pp — confirming the data and the month-ordering.
-2. Rolling the AUM identity (§2a) forward from a single early `net_assets` anchor
-   re-hits later reported `net_assets` to within ~3.6% median over 27 quarter-end
-   anchors — independent confirmation that flows and returns are mutually consistent.
-   (Re-anchoring at each report would tighten this; we keep the single-anchor roll
-   as an honest drift diagnostic.)
+   correlates at 0.99+ for every sector (mean abs error 0.17–0.80 pp) — confirming
+   the data and the month-ordering.
+2. Predicting each reported `net_assets` by rolling the AUM identity (§2a) forward
+   from the *prior quarter's* anchor lands within 0.2–1.0% (median) for all sectors —
+   independent confirmation that flows and returns reconcile with reported AUM.
+
+### 2f. Reconstructing AUM from flows (and a dividend trap we hit)
+
+We need a monthly AUM series to normalize flows (§3), but N-PORT reports `net_assets`
+only at quarter-ends. We fill the gaps with the identity `AUM_t = AUM_{t-1}(1+r_t)+F_t`.
+
+**The trap:** N-PORT's `r_t` is a *total* return (includes distributions), but an ETF
+that pays out a distribution sees that cash *leave* the fund. Using total return in
+the roll therefore over-states AUM, and the error compounds — exactly in proportion
+to dividend yield. Our first attempt (one anchor in 2019, rolled forward 81 months)
+drifted ~3.6% for low-yield Tech (XLK) but ~13–18% for high-yield Energy/Utilities/
+Materials — a clear fingerprint of the dividend bias.
+
+**The fix:** *re-anchor* at every reported `net_assets` — snap AUM to the reported
+value each quarter and roll the identity only across the two in-between months. This
+bounds the bias to a single quarter; quarter-ahead error then falls to 0.2–1.0% for
+all sectors. (A fuller fix would roll on price-only return; re-anchoring is simpler
+and self-contained, and the residual sub-quarter bias is negligible for normalization.)
 
 ---
 
