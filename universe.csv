@@ -1,0 +1,12 @@
+ticker,category,series_id,name
+XLB,Materials,S000006414,The Materials Select Sector SPDR Fund
+XLE,Energy,S000006410,The Energy Select Sector SPDR Fund
+XLF,Financials,S000006411,The Financial Select Sector SPDR Fund
+XLI,Industrials,S000006413,The Industrial Select Sector SPDR Fund
+XLK,Technology,S000006415,The Technology Select Sector SPDR Fund
+XLP,Consumer Staples,S000006409,The Consumer Staples Select Sector SPDR Fund
+XLU,Utilities,S000006416,The Utilities Select Sector SPDR Fund
+XLV,Health Care,S000006412,The Health Care Select Sector SPDR Fund
+XLY,Consumer Discretionary,S000006408,The Consumer Discretionary Select Sector SPDR Fund
+XLRE,Real Estate,S000051152,The Real Estate Select Sector SPDR Fund
+XLC,Communication Services,S000062095,The Communication Services Select Sector SPDR Fund

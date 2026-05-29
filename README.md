@@ -32,21 +32,23 @@ comparable **rotation map** (heatmap + Relative Rotation Graph).
 
 The build is iterative — each phase is a small, working artifact:
 
-| Phase | What we build |
-|-------|---------------|
-| **1** ✅ | Flow for **one** ETF (XLK): split-aware `F_t`, `g_t`. Free ETF shares are blocked (see below), so real history comes from **SEC N-PORT** reported flows — 81 months of XLK, returns cross-checked against prices. |
-| 2 | **Many** ETFs + a classification map; persist time series. |
-| 3 | **Category** flows and cumulative windows. |
-| 4 | **Rotation metrics**: z-scores, relative flow, momentum, quadrants. |
-| 5 | **Visualize**: heatmap + RRG. |
+| Phase | Status | What we build |
+|-------|--------|---------------|
+| **1** | done | Flow for **one** ETF (XLK): split-aware `F_t`, `g_t`. Free ETF shares are blocked (see below), so real history comes from **SEC N-PORT** reported flows — 81 months of XLK, returns cross-checked against prices. |
+| **2** | done | **Many** ETFs + a classification map; persist time series. Built for the 11 Select Sector SPDRs (one fund per sector) into a SQLite panel — 891 monthly rows back to 2019. |
+| 3 | next | **Category** flows and cumulative windows. |
+| 4 | | **Rotation metrics**: z-scores, relative flow, momentum, quadrants. |
+| 5 | | **Visualize**: heatmap + RRG. |
 
-Currently at the end of Phase 1.
+Currently at the end of Phase 2: a monthly flow panel for the 11 US equity sectors.
 
 ## Layout
 
 ```
 phase1_xlk_flow.py    Phase 1: daily flow math for a single ETF (shares-based; needs a shares feed)
-nport_flows.py        Phase 1 backfill: monthly REPORTED flows from SEC N-PORT (works today, free)
+nport_flows.py        Monthly REPORTED flows from SEC N-PORT (works today, free); single + multi-fund fetch
+universe.csv          Phase 2: the classification map (ticker -> category -> SEC series id)
+build_universe.py     Phase 2: build the multi-ETF monthly flow panel and persist to SQLite
 docs/methodology.md   Full methodology, math, and data gotchas
 requirements.txt      Python dependencies
 ```
@@ -57,7 +59,10 @@ requirements.txt      Python dependencies
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Real, free historical flows for XLK (SEC requires an identity string):
+# Build the full 11-sector monthly flow panel into data/flows.db (SEC needs an identity):
+EDGAR_IDENTITY="Your Name your@email.com" python build_universe.py
+
+# Single-ETF N-PORT report (defaults to XLK):
 EDGAR_IDENTITY="Your Name your@email.com" python nport_flows.py
 
 # Shares-based daily flow math (FMP_API_KEY optional; Yahoo has no ETF shares):

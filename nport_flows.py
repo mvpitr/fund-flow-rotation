@@ -44,34 +44,60 @@ def fetch_nport_flows(ticker=TICKER):
     filings = Company(ticker).get_filings(form="NPORT-P")
     rows = []
     for f in filings:
-        if (SERIES_RE.search(str(f.header)) or [None])[0] != series_id:
-            continue
-        fi = f.obj().fund_info
-        rep = pd.Timestamp(f.obj().general_info.rep_period_date)
-        rets = fi.return_info.monthly_total_returns
-        ret = rets[0] if rets else None
-        # month3 == reporting month; month1/2 are the two months before it.
-        flows = [fi.monthly_flow1, fi.monthly_flow2, fi.monthly_flow3]
-        rvals = [getattr(ret, f"return{i}", None) for i in (1, 2, 3)]
-        for offset, (mf, rv) in enumerate(zip(flows, rvals)):
-            month_end = (rep - pd.offsets.MonthEnd(2 - offset))
-            sales, reinv, redeem = float(mf.sales), float(mf.reinvestment), float(mf.redemption)
-            rows.append({
-                "month": month_end.normalize(),
-                "sales": sales,
-                "reinvestment": reinv,
-                "redemption": redeem,
-                "F": sales - redeem,                       # net creation/redemption ($)
-                "ret_pct": float(rv) if rv is not None else None,
-                # net assets are reported only for the period (month3) end:
-                "net_assets": float(fi.net_assets) if offset == 2 else None,
-            })
+        if (SERIES_RE.search(str(f.header)) or [None])[0] == series_id:
+            rows.extend(_rows_from_obj(f.obj()))
+    return _to_monthly(rows)
+
+
+def _rows_from_obj(obj):
+    """Extract three monthly flow/return/net-asset rows from one parsed N-PORT filing."""
+    fi = obj.fund_info
+    rep = pd.Timestamp(obj.general_info.rep_period_date)
+    rets = fi.return_info.monthly_total_returns
+    ret = rets[0] if rets else None
+    # month3 == reporting month; month1/2 are the two months before it.
+    flows = [fi.monthly_flow1, fi.monthly_flow2, fi.monthly_flow3]
+    rvals = [getattr(ret, f"return{i}", None) for i in (1, 2, 3)]
+    rows = []
+    for offset, (mf, rv) in enumerate(zip(flows, rvals)):
+        month_end = (rep - pd.offsets.MonthEnd(2 - offset)).normalize()
+        sales, reinv, redeem = float(mf.sales), float(mf.reinvestment), float(mf.redemption)
+        rows.append({
+            "month": month_end,
+            "sales": sales,
+            "reinvestment": reinv,
+            "redemption": redeem,
+            "F": sales - redeem,                           # net creation/redemption ($)
+            "ret_pct": float(rv) if rv is not None else None,
+            # net assets are reported only for the period (month3) end:
+            "net_assets": float(fi.net_assets) if offset == 2 else None,
+        })
+    return rows
+
+
+def _to_monthly(rows):
+    """Rows -> month-indexed frame, de-duping overlapping filings (keep most recent)."""
     df = pd.DataFrame(rows)
     if df.empty:
         return df
-    # Overlapping filings can repeat a month; keep the most complete (last) record.
-    df = df.sort_values("month").drop_duplicates("month", keep="last").set_index("month")
-    return df
+    return df.sort_values("month").drop_duplicates("month", keep="last").set_index("month")
+
+
+def fetch_many(series_to_ticker, anchor_ticker="XLK"):
+    """Pull the trust's N-PORT filings ONCE and bucket monthly rows by ticker.
+
+    All Select Sector SPDRs live in one trust, so a single pass over its filings
+    (filtering each by its SGML-header series id) covers the whole universe far
+    more cheaply than scraping per ticker. Returns {ticker: monthly DataFrame}."""
+    _identity()
+    filings = Company(anchor_ticker).get_filings(form="NPORT-P")
+    buckets = {tk: [] for tk in series_to_ticker.values()}
+    for f in filings:
+        sid = (SERIES_RE.search(str(f.header)) or [None])[0]
+        tk = series_to_ticker.get(sid)
+        if tk is not None:
+            buckets[tk].extend(_rows_from_obj(f.obj()))
+    return {tk: _to_monthly(rows) for tk, rows in buckets.items() if rows}
 
 
 def reconstruct_aum(df):

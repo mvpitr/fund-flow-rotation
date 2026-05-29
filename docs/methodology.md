@@ -351,9 +351,15 @@ Each phase is a small, working, demoable artifact. We do them in order.
 | Phase | What we build | Math used |
 |-------|---------------|-----------|
 | 1 ✅ | Flow for **one** ETF: split-aware `F_t`, `g_t`. Free ETF shares turned out to be blocked (§7), so real history comes from N-PORT reported flows (§2e) — 81 months of XLK, returns cross-checked. | §2, §3 |
-| 2 | **Many** ETFs + a classification map; store time series in a database. | §2, §4 |
+| 2 done | **Many** ETFs + classification + persistence. Universe = the 11 Select Sector SPDRs (one fund per GICS sector); all live in one SEC trust so a single N-PORT pass covers them. Stored as a monthly panel in SQLite (`data/flows.db`), keyed on (ticker, month) for incremental updates. 891 rows back to 2019-07. | §2e, §4 |
 | 3 | **Category** flows: `F_{c,t}`, `g_{c,t}`, cumulative windows. | §4, §5a |
 | 4 | **Rotation metrics**: z-scores, relative flow, momentum, quadrants. | §5b–§5e |
 | 5 | **Visualize**: heatmap + RRG. | §6 |
 
-Phase 1 is complete (with real N-PORT-sourced history); next is Phase 2.
+Phases 1-2 are complete (real N-PORT history, 11-sector SQLite panel); next is Phase 3.
+
+**Note on the starting universe.** Because the Phase 2 universe has exactly one fund
+per category (sector ETF = sector), the §4 within-category aggregation is currently an
+identity (`F_{c,t} = F_{i,t}`). That is fine: it means the *cross-category* rotation
+(relative flow across the 11 sectors, §5c) is immediately reachable. The aggregation
+machinery only starts doing real work once a category holds multiple funds.
