@@ -4,9 +4,9 @@
 
 This project reconstructs the flow of money across the US equity market, sector by
 sector, and turns it into a rotation map: a view of which parts of the market are
-attracting fresh capital and which are bleeding it, month over month. It is an
-EPFR-inspired, from-scratch rebuild of the kind of fund-flow and positioning signal
-that institutional desks pay for — built entirely on free, public regulatory data.
+attracting fresh capital and which are bleeding it, month over month. It is a
+from-scratch rebuild of the kind of fund-flow and positioning signal that institutional
+desks pay for — built entirely on free, public regulatory data.
 
 ## The idea: flows, not prices
 

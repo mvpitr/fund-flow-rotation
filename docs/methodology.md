@@ -11,8 +11,8 @@ Read top to bottom; each section builds on the previous one.
 > across categories (sectors, regions, asset classes), over time — revealing how
 > capital "rotates" around the market and what investors are collectively betting on.
 
-This is the heart of what EPFR sells. We will rebuild a small version of it from
-free, public ETF data.
+This is the heart of what commercial fund-flow data vendors sell. We will rebuild a
+small version of it from free, public ETF data.
 
 ---
 
@@ -334,7 +334,7 @@ story.
   **Resolution:** for free historical backfill we read *reported* monthly flows from
   Form N-PORT instead (§2e); the shares methods stay the daily/forward path.
 - **Representativeness caveat.** ETFs are a large but *partial* slice of all
-  investor money (EPFR also covers mutual funds, which are bigger in some markets).
+  investor money (commercial datasets also cover mutual funds, which are bigger in some markets).
   Our ETF-only map is a strong proxy, not the whole truth — worth stating openly.
 
 ---
