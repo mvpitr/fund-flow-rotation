@@ -34,7 +34,7 @@ The build is iterative — each phase is a small, working artifact:
 
 | Phase | What we build |
 |-------|---------------|
-| **1** ✅ | Flow for **one** ETF (XLK): pull shares & price, compute `F_t`, `g_t`. |
+| **1** ✅ | Flow for **one** ETF (XLK): pull shares & price, compute split-aware `F_t`, `g_t`. |
 | 2 | **Many** ETFs + a classification map; persist time series. |
 | 3 | **Category** flows and cumulative windows. |
 | 4 | **Rotation metrics**: z-scores, relative flow, momentum, quadrants. |
@@ -63,3 +63,8 @@ python phase1_xlk_flow.py
 ETFs are a large but *partial* slice of all investor money, and free data has reporting
 lags, splits, and distributions to handle carefully (see methodology §7). This is a
 strong proxy, not the whole truth — stated openly by design.
+
+**Known data gap:** Yahoo's `get_shares_full()` returns empty for ETFs (it only works
+for stocks), so the live shares-outstanding series — our core input — isn't available
+from `yfinance` alone. The flow math is implemented and split-aware; sourcing ETF
+shares from an issuer/fundamentals feed is the open task. See methodology §7.

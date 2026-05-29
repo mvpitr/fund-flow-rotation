@@ -5,6 +5,7 @@ Methodology: see docs/methodology.md (sections referenced inline).
 """
 
 from datetime import date, timedelta
+from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
@@ -51,6 +52,33 @@ def build_dataset(ticker, start, end):
     return df
 
 
+def compute_flows(df):
+    """Add estimated daily flows to the merged dataset (methodology 2b, 3, 7).
+
+    F_t = (S_t - k_t * S_{t-1}) * NAV_t      g_t = F_t / (S_{t-1} * NAV_{t-1})
+
+    NAV is proxied by the raw market Close (free data has no NAV feed); ETFs
+    trade close to NAV, so this is a small, documented approximation (2d, 7).
+    k_t is the split factor (1.0 on normal days, 2.0 for a 2:1, 0.5 for a 1:2),
+    which strips the mechanical share-count jump so a pure split shows zero flow.
+    """
+    out = df.copy()
+    # Only consecutive days with both price and shares yield a valid flow.
+    usable = out[["price", "shares"]].notna().all(axis=1)
+    out = out[usable].copy()
+
+    k = out["split"].where(out["split"] != 0, 1.0)   # split factor, 1.0 if none
+    s_prev = out["shares"].shift(1)
+    nav_prev = out["price"].shift(1)
+
+    out["aum"] = out["shares"] * out["price"]                 # AUM_t  = S_t * NAV_t
+    out["aum_prev"] = s_prev * nav_prev                       # AUM_{t-1}
+    flow_shares = out["shares"] - k * s_prev                  # shares created/redeemed, ex-split
+    out["F"] = flow_shares * out["price"]                     # dollar flow F_t
+    out["g"] = out["F"] / out["aum_prev"]                     # normalized flow g_t
+    return out
+
+
 def _diagnostics():
     print(f"Range requested: {START} -> {END}  ({TICKER})\n")
 
@@ -85,5 +113,54 @@ def _diagnostics():
     print(df.tail(8).to_string())
 
 
+def _flow_report():
+    df = build_dataset(TICKER, START, END)
+    flows = compute_flows(df)
+    valued = flows.dropna(subset=["F", "g"])
+
+    M = 1e6
+    print("\n" + "=" * 60)
+    print(f"FLOWS  ({TICKER})  — F_t = (S_t - k_t*S_{{t-1}}) * NAV_t")
+    print("  NAV proxied by market Close; flows valued in USD.")
+    print("=" * 60)
+
+    if valued.empty:
+        print("  NO USABLE ROWS — need a shares-outstanding time series.")
+        print("  Yahoo's get_shares_full() returns data for stocks but is")
+        print("  EMPTY for ETFs, so daily ΔS (and thus flow) can't be formed.")
+        print("  Next step: source ETF shares from the issuer or another feed.")
+        return
+    print(f"  flow days        : {len(valued)}")
+    print(f"  days w/ ΔS != 0  : {int((valued['F'] != 0).sum())}  (shares actually changed)")
+    print(f"  net flow (period): {valued['F'].sum() / M:,.1f}M USD")
+    print(f"  cumulative g     : {valued['g'].sum() * 100:,.2f}%  (sum of daily organic growth)")
+    print(f"  latest AUM       : {valued['aum'].iloc[-1] / M:,.0f}M USD")
+
+    moves = valued.loc[valued["F"] != 0]
+    if len(moves):
+        top = moves["F"].abs().nlargest(5).index
+        biggest = moves.loc[top, ["F", "g"]].sort_values("F", ascending=False)
+        print("\n  LARGEST FLOW DAYS (signed):")
+        for d, row in biggest.iterrows():
+            print(f"    {d.date()}   {row['F'] / M:>+10,.1f}M USD   g = {row['g'] * 100:>+6.2f}%")
+
+    print("\n  TAIL (last 8 flow days):")
+    show = valued[["price", "shares", "F", "g"]].tail(8).copy()
+    show["F"] = show["F"] / M
+    show["g"] = show["g"] * 100
+    print(show.to_string(
+        float_format=lambda x: f"{x:,.2f}",
+        header=["price", "shares", "F ($M)", "g (%)"],
+    ))
+
+    # Persist for sanity-checking against a known source (data/ is gitignored).
+    out_dir = Path("data")
+    out_dir.mkdir(exist_ok=True)
+    out_path = out_dir / f"{TICKER.lower()}_flows.csv"
+    valued[["price", "split", "shares", "aum", "F", "g"]].to_csv(out_path)
+    print(f"\n  saved -> {out_path}")
+
+
 if __name__ == "__main__":
     _diagnostics()
+    _flow_report()

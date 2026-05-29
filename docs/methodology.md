@@ -272,6 +272,14 @@ story.
   premium/discount we don't want.
 - **Reporting lag.** Shares-outstanding figures often post T+1; don't treat today's
   number as final.
+- **Yahoo has no ETF shares time series (the big one).** `yfinance.get_shares_full()`
+  returns a daily shares-outstanding series for *stocks* (e.g. AAPL) but comes back
+  **empty for ETFs** (verified for XLK, SPY, QQQ, XLE on 2026-05-29). Yahoo exposes
+  only a single current `sharesOutstanding` point for ETFs — and it can be stale or
+  split-confused. Since ΔS for ETFs is our core primitive, Phase 1's data path needs
+  a different source (issuer files, a fundamentals API, or snapshotting forward). Note
+  also that free vendors disagree materially on the *level*: on 2026-05-29 Yahoo put
+  XLK at 272M shares / $103B, while stockanalysis.com put it at 651M / $122B.
 - **Representativeness caveat.** ETFs are a large but *partial* slice of all
   investor money (EPFR also covers mutual funds, which are bigger in some markets).
   Our ETF-only map is a strong proxy, not the whole truth — worth stating openly.
