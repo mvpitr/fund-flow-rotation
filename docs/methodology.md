@@ -279,7 +279,11 @@ story.
   split-confused. Since ΔS for ETFs is our core primitive, Phase 1's data path needs
   a different source (issuer files, a fundamentals API, or snapshotting forward). Note
   also that free vendors disagree materially on the *level*: on 2026-05-29 Yahoo put
-  XLK at 272M shares / $103B, while stockanalysis.com put it at 651M / $122B.
+  XLK at 272M shares / $103B, stockanalysis.com at 651M / $122B, and FMP at 544M.
+  FMP's `/stable/shares-float` *does* cover ETFs (a `fetch_shares_fmp` hook exists),
+  but its FREE tier returns only the **current** snapshot — the historical-shares /
+  historical-market-cap endpoints are premium. So free APIs enable a snapshot-forward
+  series, not a backfill; real daily history needs a paid tier or issuer files.
 - **Representativeness caveat.** ETFs are a large but *partial* slice of all
   investor money (EPFR also covers mutual funds, which are bigger in some markets).
   Our ETF-only map is a strong proxy, not the whole truth — worth stating openly.
