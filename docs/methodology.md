@@ -368,7 +368,7 @@ Each phase is a small, working, demoable artifact. We do them in order.
 
 | Phase | What we build | Math used |
 |-------|---------------|-----------|
-| 1 ✅ | Flow for **one** ETF: split-aware `F_t`, `g_t`. Free ETF shares turned out to be blocked (§7), so real history comes from N-PORT reported flows (§2e) — 81 months of XLK, returns cross-checked. | §2, §3 |
+| 1 done | Flow for **one** ETF: split-aware `F_t`, `g_t`. Free ETF shares turned out to be blocked (§7), so real history comes from N-PORT reported flows (§2e) — 81 months of XLK, returns cross-checked. | §2, §3 |
 | 2 done | **Many** ETFs + classification + persistence. Universe = the 11 Select Sector SPDRs (one fund per GICS sector); all live in one SEC trust so a single N-PORT pass covers them. Stored as a monthly panel in SQLite (`data/flows.db`), keyed on (ticker, month) for incremental updates. 891 rows back to 2019-07. | §2e, §4 |
 | 3 | **Category** flows: `F_{c,t}`, `g_{c,t}`, cumulative windows. | §4, §5a |
 | 4 | **Rotation metrics**: z-scores, relative flow, momentum, quadrants. | §5b–§5e |
