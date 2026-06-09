@@ -1,10 +1,10 @@
 """Backfill monthly fund flows from SEC Form N-PORT (free, authoritative).
 
-Yahoo/FMP free tiers give no historical ETF shares series (methodology 7), but
-every ETF files Form N-PORT, which reports — for each of the 3 months in the
-period — share sales/redemptions (Item B.8), total return (B.7) and net assets
-(B.1). So we read *reported* monthly flows directly rather than estimating them
-from shares (methodology 2e). Monthly granularity, ~2-month reporting lag.
+Yahoo/FMP free tiers give no historical ETF shares series, but every ETF files
+Form N-PORT, which reports — for each of the 3 months in the period — share
+sales/redemptions (Item B.8), total return (B.7) and net assets (B.1). So we read
+*reported* monthly flows directly rather than estimating them from shares (see
+docs/fund-flow-rotation.tex, eq:flow_reported). Monthly granularity, ~2-month lag.
 
 Usage:
     EDGAR requires an identity. Set EDGAR_IDENTITY="Name email" in the env, then:
@@ -50,7 +50,10 @@ def fetch_nport_flows(ticker=TICKER):
 
 
 def _rows_from_obj(obj):
-    """Extract three monthly flow/return/net-asset rows from one parsed N-PORT filing."""
+    """Extract three monthly flow/return/net-asset rows from one parsed N-PORT filing.
+
+    @math_ref eq:flow_reported
+    """
     fi = obj.fund_info
     rep = pd.Timestamp(obj.general_info.rep_period_date)
     rets = fi.return_info.monthly_total_returns
@@ -101,14 +104,17 @@ def fetch_many(series_to_ticker, anchor_ticker="XLK"):
 
 
 def reconstruct_aum(df):
-    """Build a continuous monthly AUM, then g_t = F_t / AUM_{t-1} (methodology 2a).
+    """Build a continuous monthly AUM, then g_t = F_t / AUM_{t-1}.
+
+    @math_ref eq:aum_recursion
+    @math_ref eq:normalized_flow
 
     Net assets are reported only at quarter-ends, so we SNAP to each reported value
     (re-anchor) and roll the identity AUM_t = AUM_{t-1}(1+r_t)+F_t only across the two
     in-between months. Re-anchoring every quarter is important: N-PORT's r_t is a
     TOTAL return (includes distributions), but distributions paid out actually leave
     the fund, so a long single-anchor roll over-states AUM for high-yield sectors.
-    Snapping each quarter bounds that bias to <= one quarter (methodology 2f)."""
+    Snapping each quarter bounds that bias to <= one quarter."""
     df = df.copy()
     anchor = df["net_assets"].first_valid_index()
     if anchor is None:

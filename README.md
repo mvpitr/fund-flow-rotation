@@ -64,7 +64,7 @@ SEC fund filings  ->  monthly reported flows, returns, net assets, per fund
   new filings accrue incrementally over time.
 - **Validation** — reported returns are cross-checked against price-derived returns
   (correlation 0.99+), and the flow/return/AUM figures are checked for mutual consistency
-  to within ~1% per quarter. See [`docs/methodology.md`](docs/methodology.md).
+  to within ~1% per quarter. See [`docs/fund-flow-rotation.tex`](docs/fund-flow-rotation.tex).
 
 ## Build status
 
@@ -84,7 +84,7 @@ universe.csv          Classification map: ticker -> sector -> SEC series id
 build_universe.py     Build the multi-sector monthly panel and persist to SQLite
 sanity_check.py       End-to-end validation of the panel and current rotation output
 phase1_xlk_flow.py    Single-fund flow math reference
-docs/methodology.md   Full math, derivations, data sourcing, and caveats
+docs/fund-flow-rotation.tex  Canonical methodology paper: full math, derivations, validation (compile with tectonic)
 ```
 
 ## Running
@@ -105,5 +105,5 @@ python sanity_check.py
 
 ETFs are a large but partial slice of all invested capital, and reported data carries a
 modest lag. This is a deliberately transparent proxy for institutional positioning data,
-not a replacement for it — the methodology document is explicit about every assumption,
+not a replacement for it — the methodology paper is explicit about every assumption,
 approximation, and limitation behind the numbers.

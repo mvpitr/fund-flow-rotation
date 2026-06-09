@@ -17,6 +17,9 @@ env/
 data/
 output/
 
+# Compiled LaTeX (regenerate with: tectonic docs/fund-flow-rotation.tex)
+*.pdf
+
 # OS / editor
 .DS_Store
 .idea/

@@ -1,7 +1,7 @@
 """Phase 1: reconstruct daily fund flows for a single ETF (XLK).
 
 Self-contained on purpose; will be refactored into modules in Phase 2.
-Methodology: see docs/methodology.md (sections referenced inline).
+Methodology: see docs/fund-flow-rotation.tex (equation labels referenced inline).
 """
 
 import json
@@ -29,7 +29,7 @@ def _naive_dates(idx):
 
 def fetch_prices(ticker, start, end):
     # auto_adjust=False -> 'Close' is the RAW price actually seen on day t.
-    # We must not use back-adjusted prices to value flows (methodology 2d).
+    # We must not use back-adjusted prices to value flows (paper, eq:flow_shares).
     h = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=False)
     out = pd.DataFrame({"price": h["Close"], "split": h["Stock Splits"]})
     out.index = _naive_dates(out.index)
@@ -50,7 +50,7 @@ def fetch_shares(ticker, start, end):
 def fetch_shares_fmp(ticker, start, end):
     """Shares outstanding from Financial Modeling Prep (set FMP_API_KEY in env).
 
-    Yahoo serves no shares-outstanding series for ETFs (methodology 7); FMP's
+    Yahoo serves no shares-outstanding series for ETFs (paper, sec. Reading the flow); FMP's
     /stable/shares-float DOES cover ETFs. Caveat: on the FREE tier this returns
     only the CURRENT snapshot (one row) — the historical endpoints are premium.
     So this enables a snapshot-forward series, not a backfill. Returns empty if
@@ -92,12 +92,15 @@ def build_dataset(ticker, start, end):
 
 
 def compute_flows(df):
-    """Add estimated daily flows to the merged dataset (methodology 2b, 3, 7).
+    """Add estimated daily flows to the merged dataset.
+
+    @math_ref eq:flow_split
+    @math_ref eq:normalized_flow
 
     F_t = (S_t - k_t * S_{t-1}) * NAV_t      g_t = F_t / (S_{t-1} * NAV_{t-1})
 
     NAV is proxied by the raw market Close (free data has no NAV feed); ETFs
-    trade close to NAV, so this is a small, documented approximation (2d, 7).
+    trade close to NAV, so this is a small, documented approximation.
     k_t is the split factor (1.0 on normal days, 2.0 for a 2:1, 0.5 for a 1:2),
     which strips the mechanical share-count jump so a pure split shows zero flow.
     """

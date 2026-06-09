@@ -5,9 +5,11 @@ them into a rotation map. Small, honest, free-data portfolio project.
 
 ## Source of truth
 
-`docs/methodology.md` is the spec. Whenever the approach, data source, a formula, or
-the phase plan changes, update the methodology in the same pass - do not let it drift
-from the code.
+`docs/fund-flow-rotation.tex` is the spec (the quant-protocol "clean paper", State 2;
+compile with `tectonic docs/fund-flow-rotation.tex`). Whenever the approach, data source,
+a formula, or the phase plan changes, update the paper in the same pass - do not let it
+drift from the code. Every core equation carries a semantic `\label{eq:...}`, and the
+math-implementing functions reference those labels via `@math_ref` (see below).
 
 ## Workflow
 
@@ -24,6 +26,14 @@ from the code.
 - Unit tests are offline and deterministic (synthetic data) - no network.
 - `sanity_check.py` is a separate, live end-to-end validation against the built panel;
   it is not a substitute for the unit tests.
+
+## Traceability (theory <-> code)
+
+- Every function implementing a formula from the paper carries `@math_ref eq:<label>`
+  in its docstring, naming the equation it projects (e.g. `@math_ref eq:flow_split`).
+- `tests/test_math_refs.py` enforces that every `@math_ref` resolves to a real
+  `\label{eq:...}` in the paper; it runs with the suite. Pure infrastructure
+  (I/O, persistence, plotting) does not need a `@math_ref`.
 
 ## Commits
 
