@@ -29,3 +29,23 @@ def relative_flow(cat, panel):
     cat = cat.copy()
     cat["rel"] = cat["g"] - cat["month"].map(g_U)
     return cat
+
+
+def z_score(cat, lookback=12):
+    """Add standardized flow z_{c,t} = (g_{c,t} - mu_L) / sigma_L (column 'z').
+
+    mu_L and sigma_L are the mean and sample standard deviation of g over the
+    `lookback` months strictly BEFORE t (the current month is excluded, so a spike
+    never standardizes against itself and the score has no upper bound). Defined
+    only once a full prior window of `lookback` months exists, and NaN where
+    sigma_L is zero (a perfectly flat history).
+
+    @math_ref eq:zscore
+    """
+    cat = cat.sort_values(["category", "month"]).copy()
+    # Shift by one so the window ending at t covers g over [t-lookback, t-1].
+    prior = cat.groupby("category")["g"].shift(1).groupby(cat["category"])
+    mu = prior.transform(lambda s: s.rolling(lookback, min_periods=lookback).mean())
+    sd = prior.transform(lambda s: s.rolling(lookback, min_periods=lookback).std())
+    cat["z"] = (cat["g"] - mu) / sd.where(sd != 0)
+    return cat

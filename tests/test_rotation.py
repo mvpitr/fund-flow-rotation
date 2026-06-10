@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from categories import category_panel
-from rotation import relative_flow
+from rotation import relative_flow, z_score
 
 
 def _panel(rows):
@@ -19,7 +19,14 @@ def _panel(rows):
     )
 
 
-M0, M1 = "2024-01-31", "2024-02-29"
+# A run of month-ends, long enough to fill a small z-score lookback window.
+MONTHS = pd.date_range("2024-01-31", periods=6, freq="ME").strftime("%Y-%m-%d").tolist()
+M0, M1 = MONTHS[0], MONTHS[1]
+
+
+def _cat(rows):
+    """rows: list of (category, month, g) -> a category-panel-shaped frame."""
+    return pd.DataFrame([{"category": c, "month": m, "g": g} for c, m, g in rows])
 
 
 # --------------------------------------------------------------------------- #
@@ -68,3 +75,37 @@ def test_relative_flow_first_month_is_nan():
     ])
     cat = relative_flow(category_panel(panel), panel).set_index("month")
     assert pd.isna(cat.loc[M0, "rel"])
+
+
+# --------------------------------------------------------------------------- #
+# z-score: standardized against the L months STRICTLY BEFORE t.
+# With prior window [2, 1, 0]: mu = 1, sample std = 1, so g=5 -> z = 4.0. Note
+# 4.0 exceeds the inclusive-window ceiling (L-1)/sqrt(L) = 1.15 for L=3, which is
+# the whole point of excluding the current month.
+# --------------------------------------------------------------------------- #
+def test_z_score_strictly_prior_known_value():
+    cat = _cat([("Technology", m, g)
+                for m, g in zip(MONTHS, [2.0, 1.0, 0.0, 5.0, 0.0, 0.0])])
+    out = z_score(cat, lookback=3).set_index("month")
+    assert pd.isna(out.loc[MONTHS[0], "z"])      # no prior window yet
+    assert pd.isna(out.loc[MONTHS[2], "z"])      # only 2 prior months < L=3
+    assert out.loc[MONTHS[3], "z"] == pytest.approx(4.0)   # (5 - 1) / 1
+
+
+def test_z_score_zero_variance_is_nan():
+    # Prior window [1, 1, 1] has zero std -> z undefined, not +/- inf.
+    cat = _cat([("Technology", m, g)
+                for m, g in zip(MONTHS, [1.0, 1.0, 1.0, 5.0, 5.0, 5.0])])
+    out = z_score(cat, lookback=3).set_index("month")
+    assert pd.isna(out.loc[MONTHS[3], "z"])
+
+
+def test_z_score_is_per_category_isolated():
+    # Energy's flat history must not leak into Technology's z, and vice versa.
+    rows = ([("Technology", m, g) for m, g in zip(MONTHS, [2.0, 1.0, 0.0, 5.0, 0.0, 0.0])]
+            + [("Energy", m, g) for m, g in zip(MONTHS, [10.0, 10.0, 10.0, 99.0, 10.0, 10.0])])
+    out = z_score(_cat(rows), lookback=3)
+    tech = out[out["category"] == "Technology"].set_index("month")
+    energy = out[out["category"] == "Energy"].set_index("month")
+    assert tech.loc[MONTHS[3], "z"] == pytest.approx(4.0)   # uses Tech history only
+    assert pd.isna(energy.loc[MONTHS[3], "z"])              # Energy prior var = 0

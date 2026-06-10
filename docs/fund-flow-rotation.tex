@@ -160,14 +160,18 @@ sustained trend,
 \end{equation}
 
 Categories differ in their typical flow volatility, so raw $g_{c,t}$ is not comparable
-across them. Standardizing against each category's own trailing history of length $L$
-gives a comparable score,
+across them. Standardizing against each category's own recent history gives a comparable
+score,
 \begin{equation}
 \label{eq:zscore}
 z_{c,t} = \frac{g_{c,t} - \mu_{L}(g_c)}{\sigma_{L}(g_c)},
 \end{equation}
-with $\mu_L$ and $\sigma_L$ the rolling mean and standard deviation. A value $z_{c,t}=2$
-means the category is drawing unusually strong inflows relative to its own norm.
+where $\mu_L$ and $\sigma_L$ are the mean and sample standard deviation of $g_c$ over the
+$L$ months \emph{preceding} $t$. The current month is excluded from its own baseline, so a
+single extreme month neither inflates $\sigma_L$ nor drags $\mu_L$ toward itself; the score
+measures how surprising month $t$ is given the history before it, with no upper bound. A
+value $z_{c,t}=2$ means the category is drawing unusually strong inflows relative to its
+own norm.
 
 Rotation is inherently relative: capital leaving one category to enter another. Comparing
 each category to the market separates that movement from a market-wide tide,
