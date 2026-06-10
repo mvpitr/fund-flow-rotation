@@ -213,3 +213,33 @@ def test_rrg_smoothing_is_trailing_mean():
     expected = out.groupby("category")["rel"].transform(
         lambda s: s.rolling(2, min_periods=2).mean())
     pd.testing.assert_series_equal(out["rel_bar"], expected, check_names=False)
+
+
+# --------------------------------------------------------------------------- #
+# Conservation (eq:flow_conservation): AUM-weighted relative flows sum to zero
+# in every month with no category entry. At a category's first month its growth
+# is undefined, it leaves the sum, and the residual is exactly its own flow --
+# the identity's scope condition, asserted as such.
+# --------------------------------------------------------------------------- #
+def test_relative_flow_is_zero_sum_in_dollars():
+    months = pd.date_range("2024-01-31", periods=8, freq="ME").strftime("%Y-%m-%d")
+    entry = months[3]                             # Utilities enters here
+    rows = []
+    for base, (tk, cat) in enumerate(
+            [("XLK", "Technology"), ("XLE", "Energy"), ("XLU", "Utilities")], start=1):
+        for i, m in enumerate(months):
+            if tk == "XLU" and i < 3:
+                continue
+            rows.append((tk, cat, m, 50.0 * np.sin(i + base) + 10.0 * base,
+                         1000.0 * base + 30.0 * i))
+    panel = _panel(rows)
+    f_entrant = panel.loc[(panel["ticker"] == "XLU")
+                          & (panel["month"] == entry), "F"].iloc[0]
+    rel = relative_flow(category_panel(panel), panel).dropna(subset=["rel", "aum_prev"])
+    for month, d in rel.groupby("month"):
+        weighted = (d["aum_prev"] * d["rel"]).sum()
+        scale = (d["aum_prev"] * d["rel"].abs()).sum()
+        if month == entry:
+            assert weighted == pytest.approx(-f_entrant)   # residual = entrant's flow
+        elif scale > 0:
+            assert abs(weighted) / scale < 1e-12, f"violated at {month}"

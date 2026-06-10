@@ -222,8 +222,8 @@ typically traces these quadrants clockwise, and the path is the rotation.
 \section{Validation}
 \label{sec:validation}
 
-The flows are reported rather than estimated, but the reconstructed quantities admit two
-independent checks. Both run over the eleven-sector panel of Section~\ref{sec:data},
+The flows are reported rather than estimated, but the reconstructed quantities admit three
+independent checks. All run over the eleven-sector panel of Section~\ref{sec:data},
 eighty-one months from July 2019 to March 2026.
 
 First, N-PORT's reported monthly total return (Item B.7) is compared to the return
@@ -236,6 +236,25 @@ Starting from each reported net-assets anchor, we roll flows and returns forward
 next anchor and compare the prediction to the reported value. The median absolute error is
 between $0.2$ and $1.0$ percent for every sector, confirming that flows, returns, and
 reported assets are mutually consistent.
+
+Third, relative flow satisfies a conservation identity. Weighting
+\eqref{eq:relative_flow} by prior assets and summing over categories, the definition of
+the baseline \eqref{eq:universe_g} gives
+\begin{equation}
+\label{eq:flow_conservation}
+\sum_c A_{c,t-1}\,\mathrm{rel}_{c,t}
+  \;=\; \sum_c F_{c,t} \;-\; g_{U,t} \sum_c A_{c,t-1} \;=\; 0,
+\end{equation}
+so every dollar of above-market flow in one category is matched by below-market flow
+elsewhere: rotation is zero-sum in dollars by construction. The identity holds whenever
+every category carries prior assets. At a category's first month the growth rate is
+undefined, the category leaves the sum, and the residual equals its own flow; the
+eleven-sector panel has no mid-history entries. The built panel satisfies the identity
+in every month to a relative magnitude of $10^{-16}$, machine precision; a violation
+indicates an aggregation or alignment defect in the panel, not a property of the data.
+The raw dollar flow $\sum_c F_{c,t}$ does not net to zero and is not meant to: the
+median month's net flow across the eleven sectors is $42$ percent of gross flow, the
+common tide into or out of the sector complex that the relative measure removes.
 
 A single month of the panel illustrates the output. Table~\ref{tab:snapshot} reports net
 flow and growth rate by sector for March 2026.

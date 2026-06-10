@@ -9,6 +9,7 @@ Usage:
 
 import sqlite3
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 
@@ -111,14 +112,41 @@ def check_aggregate(panel):
     print("  AUM ranking (largest sectors should be Tech / Financials / Health):")
     for _, r in cur.sort_values("aum", ascending=False).head(4).iterrows():
         print(f"    {r['ticker']:5s} {r['category']:24s} ${r['aum']/B:5.1f}B")
-    # Relative flows are a zero-sum reallocation: AUM-weighted they cancel (eq:universe_g).
     g_U = universe_g(panel).set_index("month")["g_U"].loc[latest]
-    rot = relative_flow(category_panel(panel), panel)
-    m = rot[rot["month"] == latest]
-    weighted = (m["aum_prev"] * m["rel"]).sum()
     print(f"  whole-universe flow g_U: {g_U*100:+.2f}%")
-    print(f"  AUM-weighted sum of relative flows (should be ~0): {weighted/M:+.4f}M  "
-          f"[{'OK' if abs(weighted) < 1.0 else 'check'}]")
+
+
+def check_conservation(panel):
+    """Zero-sum check: AUM-weighted relative flows cancel exactly, every month.
+
+    Weighting relative flow by prior assets and summing over categories gives
+    sum_c A_{c,t-1} rel_{c,t} = 0 identically, so rotation is zero-sum in
+    dollars by construction; a violation indicates an aggregation or alignment
+    defect in the panel, not a property of the data. Scope: months with no
+    mid-history category entries (an entering category's first month leaves a
+    residual equal to its own flow); the live panel has none. Raw dollar flow
+    does not net to zero: the remainder is the common tide into or out of the
+    sector complex that the relative measure removes.
+
+    @math_ref eq:flow_conservation
+    """
+    print("\n" + "=" * 70)
+    print("6. FLOW CONSERVATION  (rotation is zero-sum in dollars)")
+    print("=" * 70)
+    rel = relative_flow(category_panel(panel), panel).dropna(subset=["rel", "aum_prev"])
+    nonfinite = int((~np.isfinite(rel["rel"])).sum())
+    print(f"  non-finite rel values: {nonfinite}  [{'OK' if nonfinite == 0 else 'FAIL'}]")
+    w = rel.groupby("month").apply(lambda d: (d["aum_prev"] * d["rel"]).sum(),
+                                   include_groups=False)
+    s = rel.groupby("month").apply(lambda d: (d["aum_prev"] * d["rel"].abs()).sum(),
+                                   include_groups=False)
+    worst = float((w.abs() / s).max())
+    print(f"  months checked: {len(w)}   max |sum_c A_prev*rel|: ${w.abs().max():,.6f}")
+    print(f"  max relative to gross: {worst:.1e}  [{'OK' if worst < 1e-10 else 'FAIL'}]")
+    tide = panel.groupby("month")["F"].sum()
+    gross = panel.groupby("month")["F"].apply(lambda x: x.abs().sum())
+    print(f"  raw net flow (not zero-sum, the common tide): mean {tide.mean()/B:+.2f}B/mo, "
+          f"median |net|/gross {(tide.abs()/gross).median():.0%}")
 
 
 def _quadrant(rel, mom):
@@ -164,4 +192,5 @@ if __name__ == "__main__":
     check_returns(panel)
     check_aum_identity(panel)
     check_aggregate(panel)
+    check_conservation(panel)
     current_output(panel)
