@@ -189,10 +189,27 @@ Whether a category's relative strength is rising or fading is its momentum over 
 \label{eq:momentum}
 m_{c,t} = \mathrm{rel}_{c,t} - \mathrm{rel}_{c,t-D}.
 \end{equation}
-Plotting categories by relative flow \eqref{eq:relative_flow} against momentum
-\eqref{eq:momentum} places each in one of four quadrants: leading (strong and rising),
-weakening (strong and falling), lagging (weak and falling), and improving (weak and
-rising). A category typically traces these clockwise, and the path is the rotation.
+Categories differ in the volatility of their relative flow, so plotting
+$\mathrm{rel}_{c,t}$ directly would let a structurally volatile sector dominate the chart
+while a calm one collapses toward the origin, even when the calm sector's move is the more
+unusual relative to its own norm. For a comparable picture we standardize relative flow
+against its own recent history, exactly as in \eqref{eq:zscore},
+\begin{equation}
+\label{eq:rs_ratio}
+\mathrm{RS}_{c,t} = \frac{\mathrm{rel}_{c,t} - \mu_L(\mathrm{rel}_c)}{\sigma_L(\mathrm{rel}_c)},
+\end{equation}
+with $\mu_L$ and $\sigma_L$ taken over the $L$ months preceding $t$, and take its momentum
+over $D$ periods in the sense of \eqref{eq:momentum},
+\begin{equation}
+\label{eq:rs_momentum}
+\mathrm{RS}^{\mathrm{m}}_{c,t} = \mathrm{RS}_{c,t} - \mathrm{RS}_{c,t-D}.
+\end{equation}
+The rotation graph plots relative strength $\mathrm{RS}_{c,t}$ (horizontal) against its
+momentum $\mathrm{RS}^{\mathrm{m}}_{c,t}$ (vertical), centered at the origin, placing each
+category in one of four quadrants: leading (strong and rising), weakening (strong and
+falling), lagging (weak and falling), and improving (weak and rising). Standardizing puts
+every sector on a common scale, so the chart compares rotation rather than raw volatility.
+A category typically traces these quadrants clockwise, and the path is the rotation.
 
 \section{Validation}
 \label{sec:validation}
@@ -276,6 +293,8 @@ $\mathrm{CF}_{c,t}(W)$ & trailing cumulative flow over $W$ months \\
 $z_{c,t}$ & standardized flow over lookback $L$ \\
 $\mathrm{rel}_{c,t}$ & relative flow, $g_{c,t} - g_{U,t}$ \\
 $m_{c,t}$ & flow momentum over $D$ periods \\
+$\mathrm{RS}_{c,t}$ & standardized relative flow (rotation-graph $x$) \\
+$\mathrm{RS}^{\mathrm{m}}_{c,t}$ & momentum of $\mathrm{RS}$ (rotation-graph $y$) \\
 \bottomrule
 \end{tabular}
 

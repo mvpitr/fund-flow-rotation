@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from categories import category_panel
-from rotation import relative_flow, z_score, momentum
+from rotation import relative_flow, z_score, momentum, rrg_coordinates
 
 
 def _panel(rows):
@@ -141,3 +141,44 @@ def test_momentum_requires_rel_column():
     cat = _cat([("Tech", m, g) for m, g in zip(MONTHS, range(6))])  # has g, not rel
     with pytest.raises(ValueError, match="rel"):
         momentum(cat, lag=3)
+
+
+# --------------------------------------------------------------------------- #
+# Generalized operators: z_score / momentum on an arbitrary source column.
+# These are what build the rotation-graph coordinates from relative flow.
+# --------------------------------------------------------------------------- #
+def test_z_score_standardizes_named_column():
+    # Same numbers as the g test, but on a 'rel' column written out to 'rs'.
+    cat = _cat_rel([("Technology", m, r)
+                    for m, r in zip(MONTHS, [2.0, 1.0, 0.0, 5.0, 0.0, 0.0])])
+    out = z_score(cat, col="rel", lookback=3, out="rs").set_index("month")
+    assert out.loc[MONTHS[3], "rs"] == pytest.approx(4.0)   # (5 - 1) / 1
+    assert pd.isna(out.loc[MONTHS[2], "rs"])
+    assert "z" not in out.columns                            # only the named output
+
+
+def test_momentum_differences_named_column():
+    rs = [0.0, 0.0, 1.0, 4.0, 2.0, 6.0]
+    cat = pd.DataFrame([{"category": "Tech", "month": m, "rs": v}
+                        for m, v in zip(MONTHS, rs)])
+    out = momentum(cat, col="rs", lag=2, out="rs_mom").set_index("month")
+    assert out.loc[MONTHS[3], "rs_mom"] == pytest.approx(4.0 - 0.0)   # rs[3] - rs[1]
+    assert out.loc[MONTHS[5], "rs_mom"] == pytest.approx(6.0 - 4.0)   # rs[5] - rs[3]
+
+
+# --------------------------------------------------------------------------- #
+# rrg_coordinates wires standardize(rel) -> 'rs' -> momentum -> 'rs_mom'.
+# --------------------------------------------------------------------------- #
+def test_rrg_coordinates_produces_rs_and_its_momentum():
+    # Two sectors with flows that swing relative flow, so rs has real variance.
+    flows = {"Technology": [0.0, 10.0, 2.0, 8.0, 3.0],
+             "Energy":     [0.0, 2.0, 10.0, 3.0, 8.0]}
+    rows = [(("XLK" if c == "Technology" else "XLE"), c, m, f, 100.0)
+            for c, fs in flows.items() for m, f in zip(MONTHS[:5], fs)]
+    panel = _panel(rows)
+    out = rrg_coordinates(category_panel(panel), panel, lookback=2, lag=1)
+    assert {"rs", "rs_mom"}.issubset(out.columns)
+    assert out["rs"].notna().any()                          # not degenerate
+    # rs_mom must be exactly the per-category lag-1 difference of rs.
+    expected = out.groupby("category")["rs"].diff(1)
+    pd.testing.assert_series_equal(out["rs_mom"], expected, check_names=False)

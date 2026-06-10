@@ -8,7 +8,9 @@ Rotation) onto the per-(category, month) panel produced by categories.py:
     standardized    eq:zscore          z_{c,t}   = (g_{c,t} - mu_L) / sigma_L
     momentum         eq:momentum        m_{c,t}   = rel_{c,t} - rel_{c,t-D}
 
-Read-only over the panel; no network.
+The rotation-graph coordinates (eq:rs_ratio, eq:rs_momentum) are the same
+standardization and momentum operators applied to relative flow; see
+rrg_coordinates. Read-only over the panel; no network.
 """
 
 from categories import universe_g
@@ -31,39 +33,59 @@ def relative_flow(cat, panel):
     return cat
 
 
-def z_score(cat, lookback=12):
-    """Add standardized flow z_{c,t} = (g_{c,t} - mu_L) / sigma_L (column 'z').
+def z_score(cat, col="g", lookback=12, out="z"):
+    """Standardize `col` against its own strictly-prior history (column `out`).
 
-    mu_L and sigma_L are the mean and sample standard deviation of g over the
-    `lookback` months strictly BEFORE t (the current month is excluded, so a spike
-    never standardizes against itself and the score has no upper bound). Defined
-    only once a full prior window of `lookback` months exists, and NaN where
-    sigma_L is zero (a perfectly flat history).
+    z = (col_t - mu_L) / sigma_L, where mu_L and sigma_L are the mean and sample
+    standard deviation of `col` over the `lookback` months strictly BEFORE t (the
+    current month is excluded, so a spike never standardizes against itself and the
+    score has no upper bound). Defined only once a full prior window of `lookback`
+    months exists, and NaN where sigma_L is zero (a perfectly flat history).
+
+    Defaults standardize the category growth g into 'z'; passing col='rel',
+    out='rs' forms the rotation-graph relative strength (see rrg_coordinates).
 
     @math_ref eq:zscore
     """
     cat = cat.sort_values(["category", "month"]).copy()
-    # Shift by one so the window ending at t covers g over [t-lookback, t-1].
-    prior = cat.groupby("category")["g"].shift(1).groupby(cat["category"])
+    # Shift by one so the window ending at t covers `col` over [t-lookback, t-1].
+    prior = cat.groupby("category")[col].shift(1).groupby(cat["category"])
     mu = prior.transform(lambda s: s.rolling(lookback, min_periods=lookback).mean())
     sd = prior.transform(lambda s: s.rolling(lookback, min_periods=lookback).std())
-    cat["z"] = (cat["g"] - mu) / sd.where(sd != 0)
+    cat[out] = (cat[col] - mu) / sd.where(sd != 0)
     return cat
 
 
-def momentum(cat, lag=3):
-    """Add flow momentum m_{c,t} = rel_{c,t} - rel_{c,t-lag} (column 'mom').
+def momentum(cat, col="rel", lag=3, out="mom"):
+    """Add the change in `col` over `lag` months, per category (column `out`).
 
-    The change in a category's relative flow over `lag` months: whether its
-    strength relative to the market is rising or fading, regardless of its current
-    level. Plotting relative flow (strength) against momentum places each category
-    in a leading / weakening / lagging / improving quadrant. Requires the 'rel'
-    column from relative_flow; NaN for the first `lag` months of each category.
+    m = col_t - col_{t-lag}: whether the quantity is rising or fading, regardless
+    of its current level. Defaults take the momentum of relative flow into 'mom';
+    passing col='rs', out='rs_mom' forms the rotation-graph vertical axis. Requires
+    `col` to be present; NaN for the first `lag` months of each category.
 
     @math_ref eq:momentum
     """
-    if "rel" not in cat.columns:
-        raise ValueError("momentum needs the 'rel' column; call relative_flow first.")
+    if col not in cat.columns:
+        raise ValueError(f"momentum needs the '{col}' column; compute it first.")
     cat = cat.sort_values(["category", "month"]).copy()
-    cat["mom"] = cat.groupby("category")["rel"].diff(lag)
+    cat[out] = cat.groupby("category")[col].diff(lag)
+    return cat
+
+
+def rrg_coordinates(cat, panel, lookback=12, lag=3):
+    """Add the rotation-graph coordinates 'rs' and 'rs_mom'.
+
+    rs is relative flow standardized against its own recent history (eq:rs_ratio),
+    putting every sector on a common scale; rs_mom is its momentum (eq:rs_momentum).
+    The rotation graph plots rs (horizontal, relative strength) against rs_mom
+    (vertical, whether that strength is rising or fading). `panel` is the per-fund
+    panel, needed to form the market baseline g_U inside relative_flow.
+
+    @math_ref eq:rs_ratio
+    @math_ref eq:rs_momentum
+    """
+    cat = relative_flow(cat, panel)
+    cat = z_score(cat, col="rel", lookback=lookback, out="rs")
+    cat = momentum(cat, col="rs", lag=lag, out="rs_mom")
     return cat
