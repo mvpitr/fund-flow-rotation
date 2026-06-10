@@ -4,8 +4,8 @@ A Relative Rotation Graph with a month slider: scrub through time and watch each
 sector trace its path through the leading / weakening / lagging / improving
 quadrants. Reuses rrg_coordinates from rotation.py (the RS-Ratio / RS-Momentum
 math lives there and in the paper), so this module is plotting only -- no
-@math_ref. Sector legend entries toggle, so a cluttered all-sector view can be
-thinned to the few sectors of interest.
+@math_ref. Sector legend entries toggle by group, so a cluttered all-sector view
+can be thinned to the few sectors of interest.
 
 The CLI writes a self-contained HTML file to docs/figures/rrg_interactive.html.
 """
@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.colors import hex_to_rgb
 
 from categories import category_panel
 from rotation import rrg_coordinates
@@ -23,6 +24,11 @@ from viz import DB_PATH, FIG_DIR, _load
 _PALETTE = px.colors.qualitative.Alphabet
 
 
+def _rgba(hexc, alpha):
+    r, g, b = hex_to_rgb(hexc)
+    return f"rgba({r},{g},{b},{alpha})"
+
+
 def _sector_tail(d, upto_idx, months, tail):
     """Coordinates of one sector's tail ending at months[upto_idx]."""
     window = months[max(0, upto_idx - tail): upto_idx + 1]
@@ -30,22 +36,22 @@ def _sector_tail(d, upto_idx, months, tail):
     return sub["rs"].to_numpy(), sub["rs_mom"].to_numpy()
 
 
-def rrg_interactive(panel, smooth=3, lookback=12, lag=3, tail=6):
+def rrg_interactive(panel, smooth=3, lookback=12, lag=3, tail=3):
     """Return an animated Plotly rotation graph (RS-Ratio x, RS-Momentum y).
 
-    Each animation frame is one month; per sector a lines+markers trace shows the
-    trailing `tail`-month path, the final (current) marker enlarged. The slider and
-    play button step through months. Axes are equal-aspect and symmetric about the
-    origin so quadrant membership is not a scaling artifact.
+    One animation frame per month. Each sector shows a faint trailing-`tail`-month
+    trail and a solid, ticker-labelled head at the current month; the slider and
+    Play button carry the rotation, so the trails stay short and uncluttered.
+    Quadrants are shaded for orientation and the legend toggles sectors by group.
+    Axes are equal-aspect and symmetric about the origin, the neutral point.
     """
     out = rrg_coordinates(category_panel(panel), panel,
                           smooth=smooth, lookback=lookback, lag=lag)
     out = out.dropna(subset=["rs", "rs_mom"])
     sectors = sorted(out["category"].unique())
     months = sorted(out["month"].unique())
-    # animate only months where at least one sector is defined
-    anim = [m for m in months if (out["month"] == m).any()]
-    lim = float(np.nanmax(np.abs(out[["rs", "rs_mom"]].to_numpy()))) * 1.1 or 1.0
+    ticker = panel.drop_duplicates("category").set_index("category")["ticker"].to_dict()
+    lim = float(np.nanmax(np.abs(out[["rs", "rs_mom"]].to_numpy()))) * 1.08 or 1.0
     color = {sec: _PALETTE[i % len(_PALETTE)] for i, sec in enumerate(sectors)}
 
     def traces_for(month):
@@ -54,22 +60,35 @@ def rrg_interactive(panel, smooth=3, lookback=12, lag=3, tail=6):
         for sec in sectors:
             d = out[out["category"] == sec]
             x, y = _sector_tail(d, idx, months, tail)
-            sizes = [6] * len(x)
-            if sizes:
-                sizes[-1] = 14
-            data.append(go.Scatter(
-                x=x, y=y, name=sec, mode="lines+markers",
-                line=dict(color=color[sec], width=1.5),
-                marker=dict(color=color[sec], size=sizes),
-                legendgroup=sec, hovertemplate=f"{sec}<br>RS=%{{x:.2f}}<br>mom=%{{y:.2f}}<extra></extra>",
-            ))
+            c = color[sec]
+            data.append(go.Scatter(                      # faint trail
+                x=x, y=y, mode="lines",
+                line=dict(color=_rgba(c, 0.35), width=1.5),
+                legendgroup=sec, showlegend=False, hoverinfo="skip"))
+            data.append(go.Scatter(                      # solid, ticker-labelled head
+                x=x[-1:], y=y[-1:], mode="markers+text",
+                marker=dict(color=c, size=12, line=dict(color="white", width=1)),
+                text=[ticker.get(sec, sec)] if len(x) else [],
+                textposition="top center", textfont=dict(size=9, color=c),
+                name=sec, legendgroup=sec, showlegend=True,
+                hovertemplate=f"{sec}<br>RS=%{{x:.2f}}<br>mom=%{{y:.2f}}<extra></extra>"))
         return data
 
     fig = go.Figure(
-        data=traces_for(anim[-1]),
-        frames=[go.Frame(data=traces_for(m), name=str(pd.Timestamp(m).date())) for m in anim],
+        data=traces_for(months[-1]),
+        frames=[go.Frame(data=traces_for(m), name=str(pd.Timestamp(m).date()))
+                for m in months],
     )
 
+    # Shaded quadrants, drawn below the data, for at-a-glance orientation.
+    for x0, x1, y0, y1, fill in [
+        (0, lim, 0, lim, _rgba("#2ca02c", 0.06)),        # leading   (top-right)
+        (0, lim, -lim, 0, _rgba("#e6a000", 0.06)),       # weakening (bottom-right)
+        (-lim, 0, -lim, 0, _rgba("#d62728", 0.06)),      # lagging   (bottom-left)
+        (-lim, 0, 0, lim, _rgba("#1f77b4", 0.06)),       # improving (top-left)
+    ]:
+        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1,
+                      fillcolor=fill, line=dict(width=0), layer="below")
     fig.add_hline(y=0, line=dict(color="black", width=1))
     fig.add_vline(x=0, line=dict(color="black", width=1))
     for x, y, ax_, ay, label in [
@@ -91,7 +110,8 @@ def rrg_interactive(panel, smooth=3, lookback=12, lag=3, tail=6):
         xaxis=dict(title="RS-Ratio (standardized relative flow)", range=[-lim, lim], zeroline=False),
         yaxis=dict(title="RS-Momentum (3-month change)", range=[-lim, lim], zeroline=False,
                    scaleanchor="x", scaleratio=1),
-        width=760, height=760, template="plotly_white",
+        width=780, height=780, template="plotly_white",
+        legend=dict(groupclick="togglegroup", title="sector"),
         sliders=[dict(active=len(steps) - 1, steps=steps, x=0, len=1.0,
                       currentvalue=dict(prefix="month: "))],
         updatemenus=[dict(type="buttons", showactive=False, x=0, y=-0.12,

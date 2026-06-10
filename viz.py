@@ -18,6 +18,7 @@ import sqlite3
 import matplotlib
 matplotlib.use("Agg")          # headless: render to files, never open a window
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 
@@ -101,20 +102,24 @@ def rrg_plot(panel, lookback=12, lag=3, tail=6):
     out = rrg_coordinates(category_panel(panel), panel, lookback=lookback, lag=lag)
     months = sorted(out["month"].unique())
     sub = out[out["month"].isin(months[-(tail + 1):])].dropna(subset=["rs", "rs_mom"])
+    ticker = panel.drop_duplicates("category").set_index("category")["ticker"].to_dict()
+    vals = sub[["rs", "rs_mom"]].to_numpy()
+    lim = (float(np.nanmax(np.abs(vals))) if len(vals) else 1.0) * 1.1 or 1.0
 
     fig, ax = plt.subplots(figsize=(7, 7))
+    # shaded quadrants for at-a-glance orientation
+    for x0, y0, fc in [(0, 0, "#2ca02c"), (0, -lim, "#e6a000"),
+                       (-lim, -lim, "#d62728"), (-lim, 0, "#1f77b4")]:
+        ax.add_patch(Rectangle((x0, y0), lim, lim, color=fc, alpha=0.06, zorder=0))
     cmap = plt.get_cmap("tab20")
-    lim = 0.0
     for i, sec in enumerate(sorted(sub["category"].unique())):
         d = sub[sub["category"] == sec].sort_values("month")
         color = cmap(i % 20)
-        ax.plot(d["rs"], d["rs_mom"], "-", color=color, lw=1, alpha=0.6)
+        ax.plot(d["rs"], d["rs_mom"], "-", color=color, lw=1.2, alpha=0.35)  # faint trail
         last = d.iloc[-1]
-        ax.plot(last["rs"], last["rs_mom"], "o", color=color, ms=8)
-        ax.annotate(sec, (last["rs"], last["rs_mom"]), fontsize=7,
-                    xytext=(4, 4), textcoords="offset points")
-        lim = max(lim, d["rs"].abs().max(), d["rs_mom"].abs().max())
-    lim = (lim or 1.0) * 1.1
+        ax.plot(last["rs"], last["rs_mom"], "o", color=color, ms=9, mec="white", mew=0.8)
+        ax.annotate(ticker.get(sec, sec), (last["rs"], last["rs_mom"]), fontsize=7,
+                    color=color, xytext=(4, 4), textcoords="offset points")
 
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
