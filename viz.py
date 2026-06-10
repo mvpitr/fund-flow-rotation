@@ -29,19 +29,22 @@ FIG_DIR = "docs/figures"
 B = 1e9
 
 
-def flow_heatmap(panel, lookback=12):
+def flow_heatmap(panel, lookback=12, vmax=None):
     """Heatmap of standardized flow z by sector (rows) and month (columns).
 
     Diverging palette centered at zero (blue = inflow, red = outflow). z is used
     rather than dollar flow so one colour intensity means the same thing in every
     cell, across both sectors and time. The last (provisional) month is fenced off
-    with a dashed divider.
+    with a dashed divider. The colour scale saturates at `vmax` (default: the
+    97.5th percentile of |z|, so a couple of extreme months do not wash out the
+    rest); cells beyond it clip to the darkest shade.
     """
     cat = z_score(category_panel(panel), lookback=lookback)
     wide = cat.pivot(index="category", columns="month", values="z")
     wide = wide.sort_values(wide.columns.max(), ascending=False)  # strongest inflow on top
     Z = wide.to_numpy(dtype=float)
-    vmax = np.nanmax(np.abs(Z))
+    if vmax is None:
+        vmax = float(np.nanpercentile(np.abs(Z), 97.5))
 
     fig, ax = plt.subplots(figsize=(12, 5))
     im = ax.imshow(Z, aspect="auto", cmap="RdBu", vmin=-vmax, vmax=vmax)
