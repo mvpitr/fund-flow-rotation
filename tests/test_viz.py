@@ -12,7 +12,8 @@ from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
 
-from viz import flow_heatmap, cumulative_flow_chart, rrg_plot, rrg_small_multiples
+from viz import (flow_heatmap, cumulative_flow_chart, quadrant_timeline, rrg_plot,
+                 rrg_small_multiples)
 
 
 def _panel(n_months=18, sectors=("Technology", "Energy", "Utilities")):
@@ -49,6 +50,17 @@ def test_rrg_plot_builds_with_points():
     fig = rrg_plot(_panel(20), lookback=3, lag=1, tail=3)
     assert isinstance(fig, Figure)
     assert fig.axes[0].lines                      # tails / markers present
+    plt.close(fig)
+
+
+def test_quadrant_timeline_builds():
+    fig = quadrant_timeline(_panel(20), smooth=1, lookback=3, lag=1)
+    assert isinstance(fig, Figure)
+    assert fig.axes and fig.axes[0].images        # the quadrant grid exists
+    assert fig.axes[0].get_legend() is not None   # quadrant legend present
+    img = fig.axes[0].images[0].get_array()
+    assert img.ndim == 3 and img.shape[2] == 4    # RGBA cells
+    assert np.nanmax(img[..., 3]) > 0             # at least one classified month
     plt.close(fig)
 
 
