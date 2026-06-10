@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from categories import category_panel
-from rotation import relative_flow, z_score
+from rotation import relative_flow, z_score, momentum
 
 
 def _panel(rows):
@@ -109,3 +109,35 @@ def test_z_score_is_per_category_isolated():
     energy = out[out["category"] == "Energy"].set_index("month")
     assert tech.loc[MONTHS[3], "z"] == pytest.approx(4.0)   # uses Tech history only
     assert pd.isna(energy.loc[MONTHS[3], "z"])              # Energy prior var = 0
+
+
+# --------------------------------------------------------------------------- #
+# momentum: m_{c,t} = rel_{c,t} - rel_{c,t-lag}, the change in relative flow.
+# --------------------------------------------------------------------------- #
+def _cat_rel(rows):
+    """rows: list of (category, month, rel) -> a frame carrying the 'rel' column."""
+    return pd.DataFrame([{"category": c, "month": m, "rel": r} for c, m, r in rows])
+
+
+def test_momentum_differences_relative_flow():
+    rel = [0.01, 0.02, 0.03, 0.05, 0.04, 0.06]
+    out = momentum(_cat_rel(list(zip(["Tech"] * 6, MONTHS, rel))), lag=3).set_index("month")
+    assert pd.isna(out.loc[MONTHS[2], "mom"])                       # < lag prior months
+    assert out.loc[MONTHS[3], "mom"] == pytest.approx(0.05 - 0.01)  # rel_t - rel_{t-3}
+    assert out.loc[MONTHS[5], "mom"] == pytest.approx(0.06 - 0.03)
+
+
+def test_momentum_is_per_category_isolated():
+    rows = (list(zip(["Tech"] * 6, MONTHS, [0.0, 0.0, 0.0, 0.4, 0.0, 0.0]))
+            + list(zip(["Energy"] * 6, MONTHS, [9.0, 9.0, 9.0, 9.0, 9.0, 9.0])))
+    out = momentum(_cat_rel(rows), lag=3)
+    tech = out[out["category"] == "Tech"].set_index("month")
+    energy = out[out["category"] == "Energy"].set_index("month")
+    assert tech.loc[MONTHS[3], "mom"] == pytest.approx(0.4)   # 0.4 - 0.0, Tech only
+    assert energy.loc[MONTHS[3], "mom"] == pytest.approx(0.0)  # flat -> no momentum
+
+
+def test_momentum_requires_rel_column():
+    cat = _cat([("Tech", m, g) for m, g in zip(MONTHS, range(6))])  # has g, not rel
+    with pytest.raises(ValueError, match="rel"):
+        momentum(cat, lag=3)

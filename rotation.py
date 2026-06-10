@@ -49,3 +49,21 @@ def z_score(cat, lookback=12):
     sd = prior.transform(lambda s: s.rolling(lookback, min_periods=lookback).std())
     cat["z"] = (cat["g"] - mu) / sd.where(sd != 0)
     return cat
+
+
+def momentum(cat, lag=3):
+    """Add flow momentum m_{c,t} = rel_{c,t} - rel_{c,t-lag} (column 'mom').
+
+    The change in a category's relative flow over `lag` months: whether its
+    strength relative to the market is rising or fading, regardless of its current
+    level. Plotting relative flow (strength) against momentum places each category
+    in a leading / weakening / lagging / improving quadrant. Requires the 'rel'
+    column from relative_flow; NaN for the first `lag` months of each category.
+
+    @math_ref eq:momentum
+    """
+    if "rel" not in cat.columns:
+        raise ValueError("momentum needs the 'rel' column; call relative_flow first.")
+    cat = cat.sort_values(["category", "month"]).copy()
+    cat["mom"] = cat.groupby("category")["rel"].diff(lag)
+    return cat
