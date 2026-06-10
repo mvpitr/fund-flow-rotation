@@ -24,6 +24,12 @@ output/
 # they are embedded in the paper.
 docs/figures/
 
+# Web frontend (web/): dependencies, build output, and the data payload baked
+# from data/flows.db by export_web_data.py
+web/node_modules/
+web/dist/
+web/src/data.json
+
 # OS / editor
 .DS_Store
 .idea/
