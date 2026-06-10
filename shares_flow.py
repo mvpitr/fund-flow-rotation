@@ -1,13 +1,14 @@
-"""Phase 1: reconstruct daily fund flows for a single ETF (XLK).
+"""Shares-route daily fund flows for a single ETF (the daily counterpart to the
+reported N-PORT route in nport_flows.py).
 
-Self-contained on purpose; will be refactored into modules in Phase 2.
-Methodology: see docs/fund-flow-rotation.tex (equation labels referenced inline).
+Flow is valued from the change in shares outstanding, net of splits, priced at the
+market close (a documented NAV proxy). This is the reference implementation of the
+shares route; see docs/fund-flow-rotation.tex (eq:flow_shares, eq:flow_split). Free
+sources serve no historical ETF shares series, so the production panel is built
+from the reported route instead -- this module stays as the shares-route reference
+and runs on whatever shares feed is available.
 """
 
-import json
-import os
-import urllib.error
-import urllib.request
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -47,44 +48,9 @@ def fetch_shares(ticker, start, end):
     return s
 
 
-def fetch_shares_fmp(ticker, start, end):
-    """Shares outstanding from Financial Modeling Prep (set FMP_API_KEY in env).
-
-    Yahoo serves no shares-outstanding series for ETFs (paper, sec. Reading the flow); FMP's
-    /stable/shares-float DOES cover ETFs. Caveat: on the FREE tier this returns
-    only the CURRENT snapshot (one row) — the historical endpoints are premium.
-    So this enables a snapshot-forward series, not a backfill. Returns empty if
-    no key is set or the request fails (so callers fall back / degrade).
-    """
-    key = os.environ.get("FMP_API_KEY")
-    if not key:
-        return pd.Series(dtype="float64", name="shares")
-    url = ("https://financialmodelingprep.com/stable/shares-float"
-           f"?symbol={ticker}&apikey={key}")
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    try:
-        data = json.loads(urllib.request.urlopen(req, timeout=30).read().decode())
-    except urllib.error.HTTPError as e:
-        print(f"  [FMP] HTTP {e.code} for {ticker}: {e.read().decode()[:160]}")
-        return pd.Series(dtype="float64", name="shares")
-    if isinstance(data, dict):  # FMP returns a dict only on error
-        print(f"  [FMP] error for {ticker}: {data}")
-        return pd.Series(dtype="float64", name="shares")
-    recs = {r["date"]: r.get("outstandingShares") for r in data if r.get("outstandingShares")}
-    if not recs:
-        return pd.Series(dtype="float64", name="shares")
-    s = pd.Series(recs, name="shares")
-    s.index = _naive_dates(s.index)
-    s = s[~s.index.duplicated(keep="last")].sort_index()
-    return s[(s.index >= pd.Timestamp(start)) & (s.index <= pd.Timestamp(end))]
-
-
 def build_dataset(ticker, start, end):
     prices = fetch_prices(ticker, start, end)
-    # Prefer FMP if a key is set (Yahoo has no ETF shares series); else Yahoo.
-    shares = fetch_shares_fmp(ticker, start, end)
-    if shares.empty:
-        shares = fetch_shares(ticker, start, end)
+    shares = fetch_shares(ticker, start, end)
     df = prices.copy()
     # Shares are reported irregularly; carry the last known value forward.
     df["shares"] = shares.reindex(df.index).ffill()

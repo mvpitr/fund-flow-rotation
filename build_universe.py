@@ -1,4 +1,4 @@
-"""Phase 2: build a monthly flow panel for a universe of ETFs and persist it.
+"""Build a monthly flow panel for a universe of ETFs and persist it.
 
 Reads the classification map (universe.csv), pulls reported monthly flows from
 SEC N-PORT for every fund in one pass (nport_flows.fetch_many), normalizes via
@@ -20,8 +20,10 @@ from nport_flows import fetch_many, reconstruct_aum
 
 UNIVERSE_CSV = "universe.csv"
 DB_PATH = "data/flows.db"
+# Per-fund frame columns (month lives in the index here); DB_COLUMNS adds month.
 COLUMNS = ["ticker", "category", "sales", "reinvestment", "redemption",
            "F", "ret_pct", "net_assets", "aum", "g"]
+DB_COLUMNS = ["ticker", "month"] + COLUMNS[1:]
 
 
 def load_universe(path=UNIVERSE_CSV):
@@ -56,12 +58,10 @@ def persist(panel, universe, db_path=DB_PATH):
             F REAL, ret_pct REAL, net_assets REAL, aum REAL, g REAL,
             PRIMARY KEY (ticker, month)
         )""")
-    cols = ["ticker", "month", "category", "sales", "reinvestment", "redemption",
-            "F", "ret_pct", "net_assets", "aum", "g"]
-    rows = [tuple(None if pd.isna(v) else v for v in r) for r in panel[cols].itertuples(index=False)]
+    rows = [tuple(None if pd.isna(v) else v for v in r) for r in panel[DB_COLUMNS].itertuples(index=False)]
     con.executemany(
-        f"INSERT OR REPLACE INTO monthly_flows ({','.join(cols)}) "
-        f"VALUES ({','.join('?' * len(cols))})", rows)
+        f"INSERT OR REPLACE INTO monthly_flows ({','.join(DB_COLUMNS)}) "
+        f"VALUES ({','.join('?' * len(DB_COLUMNS))})", rows)
     universe.to_sql("universe", con, if_exists="replace", index=False)
     con.commit()
     con.close()
@@ -69,7 +69,7 @@ def persist(panel, universe, db_path=DB_PATH):
 
 def _summary(panel):
     M = 1e6
-    print(f"\nPhase 2 panel: {panel['ticker'].nunique()} ETFs, {len(panel)} rows, "
+    print(f"\nFlow panel: {panel['ticker'].nunique()} ETFs, {len(panel)} rows, "
           f"{panel['month'].min()} -> {panel['month'].max()}")
     latest = panel["month"].max()
     snap = (panel[panel["month"] == latest]

@@ -11,7 +11,7 @@ from types import SimpleNamespace as NS
 import pandas as pd
 import pytest
 
-from phase1_xlk_flow import compute_flows
+from shares_flow import compute_flows
 from nport_flows import _rows_from_obj, _to_monthly, reconstruct_aum
 import build_universe
 
