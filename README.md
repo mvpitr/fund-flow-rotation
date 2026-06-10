@@ -33,11 +33,14 @@ sector to the market as a whole, and the result is a **rotation map**.
 ## What it shows
 
 The working panel covers the eleven sectors of the US equity market with ~7 years of
-monthly history. From it, two views fall out immediately:
+monthly history. From it, three views fall out:
 
 - **The snapshot** — net flow into and out of each sector this month.
 - **The trend** — trailing cumulative flow, which sector is winning or losing capital
   over a window.
+- **The rotation map** — each sector's flow relative to the whole-market tide,
+  standardized against its own history, and the momentum of that relative strength —
+  placing each sector in a lead / lag / improve / weaken quadrant.
 
 For example, a recent reading shows capital rotating out of the prior growth leadership
 (Technology, Communication Services, Financials) and into Energy, defensives (Utilities,
@@ -65,16 +68,6 @@ SEC fund filings  ->  monthly reported flows, returns, net assets, per fund
 - **Validation** — reported returns are cross-checked against price-derived returns
   (correlation 0.99+), and the flow/return/AUM figures are checked for mutual consistency
   to within ~1% per quarter. See [`docs/fund-flow-rotation.tex`](docs/fund-flow-rotation.tex).
-
-## Build status
-
-| Phase | Status | |
-|-------|--------|---|
-| 1 | done | Single-fund flow engine and normalization |
-| 2 | done | Multi-sector universe, classification, persisted monthly panel |
-| 3 | done | Category flows, whole-market baseline, trailing cumulative windows |
-| 4 | next | Rotation metrics: relative flow, z-scores, momentum |
-| 5 | planned | Visualization: flow heatmap and Relative Rotation Graph |
 
 ## Repo layout
 

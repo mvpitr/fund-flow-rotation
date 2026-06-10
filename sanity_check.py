@@ -13,7 +13,7 @@ import pandas as pd
 import yfinance as yf
 
 from categories import category_panel, universe_g, cumulative_flow
-from rotation import relative_flow
+from rotation import relative_flow, z_score, momentum
 
 DB_PATH = "data/flows.db"
 M = 1e6
@@ -121,13 +121,21 @@ def check_aggregate(panel):
           f"[{'OK' if abs(weighted) < 1.0 else 'check'}]")
 
 
+def _quadrant(rel, mom):
+    """Place a sector by relative flow (strength) and momentum (rising/falling)."""
+    if rel >= 0:
+        return "leading" if mom >= 0 else "weakening"
+    return "improving" if mom >= 0 else "lagging"
+
+
 def current_output(panel):
     print("\n" + "#" * 70)
     print("# CURRENT OUTPUT: where money is rotating")
     print("#" * 70)
 
-    # Aggregate per-fund flows to category flows + category growth (Phase 3).
+    # Aggregate per-fund flows to category flows + growth, then rotation metrics.
     cat = cumulative_flow(category_panel(panel), window=6)
+    rot = momentum(z_score(relative_flow(cat, panel), lookback=12), lag=3)
     g_U = universe_g(panel).set_index("month")["g_U"]
     latest = cat["month"].max()
 
@@ -138,9 +146,15 @@ def current_output(panel):
     print(f"   {'whole-market baseline g_U':24s} {'':>9s}    g={g_U.loc[latest]*100:>+6.2f}%")
 
     print("\nB) Trailing 6-month cumulative flow (the sustained trend):")
-    cf = cur.sort_values("CF6", ascending=False)
-    for _, r in cf.iterrows():
+    for _, r in cur.sort_values("CF6", ascending=False).iterrows():
         print(f"   {r['category']:24s} {r['CF6']/B:>+6.2f}B over 6mo")
+
+    print("\nC) Rotation map (rel = g - market g_U; z vs own 12m history; mom = 3m change in rel):")
+    cur_rot = rot[rot["month"] == latest].dropna(subset=["rel", "mom"]).sort_values("rel", ascending=False)
+    print(f"   {'sector':24s} {'rel%':>7s} {'z':>6s} {'mom%':>7s}   quadrant")
+    for _, r in cur_rot.iterrows():
+        print(f"   {r['category']:24s} {r['rel']*100:>+6.2f} {r['z']:>+6.2f} "
+              f"{r['mom']*100:>+6.2f}   {_quadrant(r['rel'], r['mom'])}")
 
 
 if __name__ == "__main__":
