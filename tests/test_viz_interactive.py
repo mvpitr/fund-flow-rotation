@@ -1,15 +1,16 @@
-"""Offline smoke tests for the interactive Plotly rotation graph.
+"""Offline smoke tests for the interactive Plotly rotation figures.
 
-Verifies the animated figure builds from a synthetic panel with the expected
-structure (frames, traces, equal-aspect axes) and round-trips to self-contained
-HTML. No browser or network needed. Run with `pytest` from the repo root.
+Verifies the animated rotation graph and the quadrant timeline build from a
+synthetic panel with the expected structure (frames, traces, equal-aspect axes,
+hover payload) and round-trip to self-contained HTML. No browser or network
+needed. Run with `pytest` from the repo root.
 """
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from viz_interactive import rrg_interactive, rrg_small_multiples_interactive
+from viz_interactive import quadrant_timeline_interactive, rrg_interactive
 
 
 def _panel(n=18, sectors=("Technology", "Energy", "Utilities")):
@@ -38,8 +39,10 @@ def test_rrg_interactive_html_roundtrip(tmp_path):
     assert path.exists() and path.stat().st_size > 1000
 
 
-def test_rrg_small_multiples_interactive_builds():
-    fig = rrg_small_multiples_interactive(_panel(), smooth=1, lookback=3, lag=1, tail=4)
+def test_quadrant_timeline_interactive_builds():
+    fig = quadrant_timeline_interactive(_panel(), smooth=1, lookback=3, lag=1)
     assert isinstance(fig, go.Figure)
-    assert len(fig.data) >= 3                          # at least one trace per sector
-    assert any(s.type == "rect" for s in fig.layout.shapes)   # quadrant shading
+    assert fig.data and fig.data[0].type == "heatmap"
+    assert fig.data[0].customdata is not None          # hover payload present
+    z = np.asarray(fig.data[0].z, dtype=float)
+    assert np.nanmax(z) < 4.0 and np.nanmin(z) >= 0.0  # codes stay in the colour bands

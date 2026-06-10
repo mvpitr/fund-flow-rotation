@@ -3,7 +3,8 @@
 **Where is investor capital actually moving — and what is it rotating *into*?**
 
 **Live demo:** [interactive rotation graph](https://mvpitr.github.io/fund-flow-rotation/) —
-a per-sector grid of rotation paths through the lead / lag / improve / weaken quadrants.
+an animated rotation graph (scrub through the months) plus a quadrant timeline of every
+sector's rotation history.
 
 This project reconstructs the flow of money across the US equity market, sector by
 sector, and turns it into a rotation map: a view of which parts of the market are
@@ -80,8 +81,8 @@ universe.csv          Classification map: ticker -> sector -> SEC series id
 build_universe.py     Build the multi-sector monthly panel and persist to SQLite
 categories.py         Aggregate per-fund flows to category flows, g_U, and CF(W) windows
 rotation.py           Rotation stats: relative flow, z-score, momentum, RRG coordinates
-viz.py                Static matplotlib figures: heatmap, cumulative flow, rotation graph, per-sector small multiples
-viz_interactive.py    Interactive Plotly per-sector rotation-graph grid (self-contained HTML)
+viz.py                Static figures: rotation snapshot, rotation timeline, strength heatmap, cumulative flow, small multiples
+viz_interactive.py    Interactive Plotly page: animated rotation graph + rotation timeline (self-contained HTML)
 sanity_check.py       End-to-end validation of the panel and current rotation output
 shares_flow.py        Shares-route daily flow reference (eq:flow_shares, eq:flow_split)
 docs/fund-flow-rotation.tex  Canonical methodology paper: full math, derivations, validation (compile with tectonic)
