@@ -100,3 +100,25 @@ def test_fund_entering_midhistory_uses_present_funds_only():
     assert cat.loc[M1, "F"] == pytest.approx(60.0)           # both funds' flow
     assert cat.loc[M1, "aum_prev"] == pytest.approx(100.0)   # only XLK was present at M0
     assert cat.loc[M1, "g"] == pytest.approx(60.0 / 100.0)
+
+
+# --------------------------------------------------------------------------- #
+# Regression: a month where every member fund's AUM is unknown (NaN) must stay
+# NaN at the category level, not collapse to a fabricated zero -- a zero prior
+# AUM turns the next month's growth rate into +/-inf. Surfaced by the zero-sum
+# sanity check on the live panel (first two pre-anchoring months, 2019-07/08).
+# --------------------------------------------------------------------------- #
+def test_all_nan_aum_month_stays_nan_no_inf():
+    import numpy as np
+
+    panel = _panel([
+        ("XLK", "Technology", M0, 5.0, np.nan),   # AUM unknown at M0
+        ("XLK", "Technology", M1, 10.0, 100.0),
+        ("XLK", "Technology", M2, 4.0, 110.0),
+    ])
+    cat = category_panel(panel).set_index("month")
+    assert pd.isna(cat.loc[M0, "aum"])                        # unknown, not 0.0
+    assert pd.isna(cat.loc[M1, "g"])                          # F/NaN, not F/0 = inf
+    assert not np.isinf(cat["g"].dropna()).any()
+    uni = universe_g(panel).set_index("month")
+    assert not np.isinf(uni["g_U"].dropna()).any()

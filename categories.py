@@ -29,14 +29,15 @@ def category_panel(panel):
 
     A category's prior assets A_{c,t-1} are summed over the funds present in month
     t-1, so a fund that starts mid-history simply joins the sum once its data
-    begins; pre-data months contribute nothing (pandas sum skips NaN), matching
-    the "fund enters when its filings begin" reading of the paper.
+    begins; pre-data months contribute nothing. A month where every member fund's
+    value is unknown stays NaN (min_count=1) rather than becoming a fabricated
+    zero, which would make the next month's growth rate infinite.
 
     @math_ref eq:category_flow
     @math_ref eq:category_g
     """
-    cat = (panel.groupby(["category", "month"], as_index=False)
-                .agg(F=("F", "sum"), aum=("aum", "sum"))
+    cat = (panel.groupby(["category", "month"], as_index=False)[["F", "aum"]]
+                .sum(min_count=1)
                 .sort_values(["category", "month"])
                 .reset_index(drop=True))
     cat["aum_prev"] = cat.groupby("category")["aum"].shift(1)
@@ -52,8 +53,8 @@ def universe_g(panel):
 
     @math_ref eq:universe_g
     """
-    tot = (panel.groupby("month", as_index=False)
-                .agg(F=("F", "sum"), aum=("aum", "sum"))
+    tot = (panel.groupby("month", as_index=False)[["F", "aum"]]
+                .sum(min_count=1)
                 .sort_values("month")
                 .reset_index(drop=True))
     tot["aum_prev"] = tot["aum"].shift(1)
