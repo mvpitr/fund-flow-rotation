@@ -8,9 +8,9 @@ Rotation) onto the per-(category, month) panel produced by categories.py:
     standardized    eq:zscore          z_{c,t}   = (g_{c,t} - mu_L) / sigma_L
     momentum         eq:momentum        m_{c,t}   = rel_{c,t} - rel_{c,t-D}
 
-The rotation-graph coordinates (eq:rs_ratio, eq:rs_momentum) are the same
-standardization and momentum operators applied to relative flow; see
-rrg_coordinates. Read-only over the panel; no network.
+The rotation-graph coordinates (eq:rel_smoothed, eq:rs_ratio, eq:rs_momentum) smooth
+relative flow with a trailing mean, then apply the same standardization and momentum
+operators to it; see rrg_coordinates. Read-only over the panel; no network.
 """
 
 from categories import universe_g
@@ -73,19 +73,29 @@ def momentum(cat, col="rel", lag=3, out="mom"):
     return cat
 
 
-def rrg_coordinates(cat, panel, lookback=12, lag=3):
-    """Add the rotation-graph coordinates 'rs' and 'rs_mom'.
+def rrg_coordinates(cat, panel, smooth=3, lookback=12, lag=3):
+    """Add the rotation-graph coordinates 'rel_bar', 'rs' and 'rs_mom'.
 
-    rs is relative flow standardized against its own recent history (eq:rs_ratio),
-    putting every sector on a common scale; rs_mom is its momentum (eq:rs_momentum).
-    The rotation graph plots rs (horizontal, relative strength) against rs_mom
-    (vertical, whether that strength is rising or fading). `panel` is the per-fund
-    panel, needed to form the market baseline g_U inside relative_flow.
+    Relative flow is first smoothed with a trailing `smooth`-month mean into rel_bar
+    (eq:rel_smoothed), so a single noisy month does not dominate the path; rel_bar
+    is then standardized against its own recent history into the relative strength
+    rs (eq:rs_ratio), putting every sector on a common scale, and rs_mom is its
+    momentum (eq:rs_momentum). The rotation graph plots rs (horizontal, relative
+    strength) against rs_mom (vertical, whether that strength is rising or fading).
+    `smooth=1` leaves relative flow unsmoothed. `panel` is the per-fund panel,
+    needed to form the market baseline g_U inside relative_flow.
 
+    @math_ref eq:rel_smoothed
     @math_ref eq:rs_ratio
     @math_ref eq:rs_momentum
     """
     cat = relative_flow(cat, panel)
-    cat = z_score(cat, col="rel", lookback=lookback, out="rs")
+    cat = cat.sort_values(["category", "month"]).copy()
+    if smooth > 1:
+        cat["rel_bar"] = cat.groupby("category")["rel"].transform(
+            lambda s: s.rolling(smooth, min_periods=smooth).mean())
+    else:
+        cat["rel_bar"] = cat["rel"]
+    cat = z_score(cat, col="rel_bar", lookback=lookback, out="rs")
     cat = momentum(cat, col="rs", lag=lag, out="rs_mom")
     return cat

@@ -4,6 +4,7 @@ No network: every test builds a synthetic (ticker, month) panel so the rotation
 math is exercised in isolation. Run with `pytest` from the repo root.
 """
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -17,6 +18,16 @@ def _panel(rows):
         [{"ticker": t, "category": c, "month": m, "F": f, "aum": a}
          for t, c, m, f, a in rows]
     )
+
+
+def _multi_month_panel(n=18):
+    """Two sectors over n months with deterministic, varying flows (for windows)."""
+    months = pd.date_range("2023-01-31", periods=n, freq="ME").strftime("%Y-%m-%d")
+    rows = []
+    for base, (tk, cat) in enumerate([("XLK", "Technology"), ("XLE", "Energy")], start=1):
+        for i, m in enumerate(months):
+            rows.append((tk, cat, m, 100.0 * np.sin(i / 2.0 + base) + 20.0 * base, 1000.0))
+    return _panel(rows)
 
 
 # A run of month-ends, long enough to fill a small z-score lookback window.
@@ -176,9 +187,29 @@ def test_rrg_coordinates_produces_rs_and_its_momentum():
     rows = [(("XLK" if c == "Technology" else "XLE"), c, m, f, 100.0)
             for c, fs in flows.items() for m, f in zip(MONTHS[:5], fs)]
     panel = _panel(rows)
-    out = rrg_coordinates(category_panel(panel), panel, lookback=2, lag=1)
+    out = rrg_coordinates(category_panel(panel), panel, smooth=1, lookback=2, lag=1)
     assert {"rs", "rs_mom"}.issubset(out.columns)
     assert out["rs"].notna().any()                          # not degenerate
     # rs_mom must be exactly the per-category lag-1 difference of rs.
     expected = out.groupby("category")["rs"].diff(1)
     pd.testing.assert_series_equal(out["rs_mom"], expected, check_names=False)
+
+
+def test_rrg_smooth_one_matches_unsmoothed():
+    """Regression: smooth=1 reproduces standardizing raw relative flow exactly."""
+    panel = _multi_month_panel(18)
+    out = rrg_coordinates(category_panel(panel), panel, smooth=1, lookback=6, lag=3)
+    ref = momentum(z_score(relative_flow(category_panel(panel), panel),
+                           col="rel", lookback=6, out="rs"), col="rs", lag=3, out="rs_mom")
+    for c in ("rs", "rs_mom"):
+        pd.testing.assert_series_equal(out.reset_index(drop=True)[c],
+                                       ref.reset_index(drop=True)[c], check_names=False)
+
+
+def test_rrg_smoothing_is_trailing_mean():
+    """rel_bar must be the per-category trailing w-month mean of relative flow."""
+    out = rrg_coordinates(category_panel(_multi_month_panel(18)), _multi_month_panel(18),
+                          smooth=2, lookback=6, lag=3)
+    expected = out.groupby("category")["rel"].transform(
+        lambda s: s.rolling(2, min_periods=2).mean())
+    pd.testing.assert_series_equal(out["rel_bar"], expected, check_names=False)
