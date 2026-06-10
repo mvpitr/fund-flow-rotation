@@ -78,6 +78,7 @@ build_universe.py     Build the multi-sector monthly panel and persist to SQLite
 categories.py         Aggregate per-fund flows to category flows, g_U, and CF(W) windows
 rotation.py           Rotation stats: relative flow, z-score, momentum, RRG coordinates
 viz.py                Static matplotlib figures: flow heatmap, cumulative flow, rotation graph
+viz_interactive.py    Interactive Plotly rotation graph with a month slider (self-contained HTML)
 sanity_check.py       End-to-end validation of the panel and current rotation output
 shares_flow.py        Shares-route daily flow reference (eq:flow_shares, eq:flow_split)
 docs/fund-flow-rotation.tex  Canonical methodology paper: full math, derivations, validation (compile with tectonic)
@@ -95,6 +96,9 @@ EDGAR_IDENTITY="Your Name your@email.com" python build_universe.py
 
 # Validate the panel and print the current rotation snapshot
 python sanity_check.py
+
+# Render the figures into docs/figures/ (static PNGs + interactive RRG)
+python viz.py && python viz_interactive.py
 ```
 
 ## Scope and honesty

@@ -54,5 +54,6 @@ math-implementing functions reference those labels via `@math_ref` (see below).
 - `categories.py` - aggregate per-fund flows to category flows, whole-market baseline, and trailing cumulative windows.
 - `rotation.py` - rotation statistics: relative flow, z-score, momentum, and the RRG coordinates (RS-Ratio / RS-Momentum).
 - `viz.py` - static matplotlib figures (flow heatmap, cumulative flow, rotation graph); writes to docs/figures/.
+- `viz_interactive.py` - interactive Plotly rotation graph with a month slider; writes self-contained HTML to docs/figures/.
 - `sanity_check.py` - end-to-end validation and current rotation output.
 - `shares_flow.py` - shares-route daily flow reference (counterpart to the reported N-PORT route).
