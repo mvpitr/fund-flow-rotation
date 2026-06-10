@@ -12,6 +12,8 @@ import sqlite3
 import pandas as pd
 import yfinance as yf
 
+from categories import category_panel, universe_g, cumulative_flow
+
 DB_PATH = "data/flows.db"
 M = 1e6
 B = 1e9
@@ -123,18 +125,22 @@ def current_output(panel):
     print("\n" + "#" * 70)
     print("# CURRENT OUTPUT: where money is rotating")
     print("#" * 70)
-    latest = panel["month"].max()
-    cur = panel[panel["month"] == latest].sort_values("F", ascending=False)
+
+    # Aggregate per-fund flows to category flows + category growth (Phase 3).
+    cat = cumulative_flow(category_panel(panel), window=6)
+    g_U = universe_g(panel).set_index("month")["g_U"]
+    latest = cat["month"].max()
+
+    cur = cat[cat["month"] == latest].sort_values("F", ascending=False)
     print(f"\nA) Latest month ({latest.date()}) net flow by sector:")
     for _, r in cur.iterrows():
-        print(f"   {r['ticker']:5s} {r['category']:24s} {r['F']/M:>+9,.0f}M   g={r['g']*100:>+6.2f}%")
+        print(f"   {r['category']:24s} {r['F']/M:>+9,.0f}M   g={r['g']*100:>+6.2f}%")
+    print(f"   {'whole-market baseline g_U':24s} {'':>9s}    g={g_U.loc[latest]*100:>+6.2f}%")
 
     print("\nB) Trailing 6-month cumulative flow (the sustained trend):")
-    last6 = sorted(panel["month"].unique())[-6:]
-    cf = (panel[panel["month"].isin(last6)].groupby(["ticker", "category"])["F"].sum()
-          .reset_index().sort_values("F", ascending=False))
+    cf = cur.sort_values("CF6", ascending=False)
     for _, r in cf.iterrows():
-        print(f"   {r['ticker']:5s} {r['category']:24s} {r['F']/B:>+6.2f}B over 6mo")
+        print(f"   {r['category']:24s} {r['CF6']/B:>+6.2f}B over 6mo")
 
 
 if __name__ == "__main__":

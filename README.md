@@ -72,8 +72,8 @@ SEC fund filings  ->  monthly reported flows, returns, net assets, per fund
 |-------|--------|---|
 | 1 | done | Single-fund flow engine and normalization |
 | 2 | done | Multi-sector universe, classification, persisted monthly panel |
-| 3 | next | Category flows and trailing cumulative windows |
-| 4 | planned | Rotation metrics: relative flow, z-scores, momentum |
+| 3 | done | Category flows, whole-market baseline, trailing cumulative windows |
+| 4 | next | Rotation metrics: relative flow, z-scores, momentum |
 | 5 | planned | Visualization: flow heatmap and Relative Rotation Graph |
 
 ## Repo layout
@@ -82,6 +82,7 @@ SEC fund filings  ->  monthly reported flows, returns, net assets, per fund
 nport_flows.py        Read monthly reported flows from SEC filings (single + multi-fund)
 universe.csv          Classification map: ticker -> sector -> SEC series id
 build_universe.py     Build the multi-sector monthly panel and persist to SQLite
+categories.py         Aggregate per-fund flows to category flows, g_U, and CF(W) windows
 sanity_check.py       End-to-end validation of the panel and current rotation output
 phase1_xlk_flow.py    Single-fund flow math reference
 docs/fund-flow-rotation.tex  Canonical methodology paper: full math, derivations, validation (compile with tectonic)
