@@ -13,6 +13,7 @@ import pandas as pd
 import yfinance as yf
 
 from categories import category_panel, universe_g, cumulative_flow
+from rotation import relative_flow
 
 DB_PATH = "data/flows.db"
 M = 1e6
@@ -104,18 +105,17 @@ def check_aggregate(panel):
     print("5. AGGREGATE SANITY")
     print("=" * 70)
     latest = panel["month"].max()
-    cur = panel[panel["month"] == latest].copy()
-    prev_month = sorted(panel["month"].unique())[-2]
-    prev = panel[panel["month"] == prev_month].set_index("ticker")["aum"]
-    cur["aum_prev"] = cur["ticker"].map(prev)
+    cur = panel[panel["month"] == latest]
     total_aum = cur["aum"].sum()
     print(f"  latest month: {latest.date()}   total universe AUM: ${total_aum/B:,.1f}B")
     print("  AUM ranking (largest sectors should be Tech / Financials / Health):")
     for _, r in cur.sort_values("aum", ascending=False).head(4).iterrows():
         print(f"    {r['ticker']:5s} {r['category']:24s} ${r['aum']/B:5.1f}B")
-    g_U = cur["F"].sum() / cur["aum_prev"].sum()
-    cur["rel"] = cur["g"] - g_U
-    weighted = (cur["aum_prev"] * cur["rel"]).sum()
+    # Relative flows are a zero-sum reallocation: AUM-weighted they cancel (eq:universe_g).
+    g_U = universe_g(panel).set_index("month")["g_U"].loc[latest]
+    rot = relative_flow(category_panel(panel), panel)
+    m = rot[rot["month"] == latest]
+    weighted = (m["aum_prev"] * m["rel"]).sum()
     print(f"  whole-universe flow g_U: {g_U*100:+.2f}%")
     print(f"  AUM-weighted sum of relative flows (should be ~0): {weighted/M:+.4f}M  "
           f"[{'OK' if abs(weighted) < 1.0 else 'check'}]")
