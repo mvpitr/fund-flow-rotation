@@ -76,6 +76,8 @@ nport_flows.py        Read monthly reported flows from SEC filings (single + mul
 universe.csv          Classification map: ticker -> sector -> SEC series id
 build_universe.py     Build the multi-sector monthly panel and persist to SQLite
 categories.py         Aggregate per-fund flows to category flows, g_U, and CF(W) windows
+rotation.py           Rotation stats: relative flow, z-score, momentum, RRG coordinates
+viz.py                Static matplotlib figures: flow heatmap, cumulative flow, rotation graph
 sanity_check.py       End-to-end validation of the panel and current rotation output
 shares_flow.py        Shares-route daily flow reference (eq:flow_shares, eq:flow_split)
 docs/fund-flow-rotation.tex  Canonical methodology paper: full math, derivations, validation (compile with tectonic)

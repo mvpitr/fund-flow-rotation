@@ -20,6 +20,10 @@ output/
 # Compiled LaTeX (regenerate with: tectonic docs/fund-flow-rotation.tex)
 *.pdf
 
+# Generated figures (regenerate with: python viz.py); snapshot tracked once
+# they are embedded in the paper.
+docs/figures/
+
 # OS / editor
 .DS_Store
 .idea/
