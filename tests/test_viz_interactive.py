@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from viz_interactive import rrg_interactive
+from viz_interactive import rrg_interactive, rrg_small_multiples_interactive
 
 
 def _panel(n=18, sectors=("Technology", "Energy", "Utilities")):
@@ -36,3 +36,10 @@ def test_rrg_interactive_html_roundtrip(tmp_path):
     path = tmp_path / "rrg.html"
     fig.write_html(str(path), include_plotlyjs="cdn")
     assert path.exists() and path.stat().st_size > 1000
+
+
+def test_rrg_small_multiples_interactive_builds():
+    fig = rrg_small_multiples_interactive(_panel(), smooth=1, lookback=3, lag=1, tail=4)
+    assert isinstance(fig, go.Figure)
+    assert len(fig.data) >= 3                          # at least one trace per sector
+    assert any(s.type == "rect" for s in fig.layout.shapes)   # quadrant shading

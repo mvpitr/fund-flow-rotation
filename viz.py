@@ -107,10 +107,7 @@ def rrg_plot(panel, lookback=12, lag=3, tail=6):
     lim = (float(np.nanmax(np.abs(vals))) if len(vals) else 1.0) * 1.1 or 1.0
 
     fig, ax = plt.subplots(figsize=(7, 7))
-    # shaded quadrants for at-a-glance orientation
-    for x0, y0, fc in [(0, 0, "#2ca02c"), (0, -lim, "#e6a000"),
-                       (-lim, -lim, "#d62728"), (-lim, 0, "#1f77b4")]:
-        ax.add_patch(Rectangle((x0, y0), lim, lim, color=fc, alpha=0.06, zorder=0))
+    _quadrant_patches(ax, lim)
     cmap = plt.get_cmap("tab20")
     for i, sec in enumerate(sorted(sub["category"].unique())):
         d = sub[sub["category"] == sec].sort_values("month")
@@ -141,6 +138,64 @@ def rrg_plot(panel, lookback=12, lag=3, tail=6):
     return fig
 
 
+def _quadrant_patches(ax, lim):
+    """Shade the four rotation quadrants on `ax` (drawn below the data)."""
+    for x0, y0, fc in [(0, 0, "#2ca02c"), (0, -lim, "#e6a000"),
+                       (-lim, -lim, "#d62728"), (-lim, 0, "#1f77b4")]:
+        ax.add_patch(Rectangle((x0, y0), lim, lim, color=fc, alpha=0.06, zorder=0))
+
+
+def rrg_small_multiples(panel, smooth=3, lookback=12, lag=3, tail=12):
+    """Grid of per-sector rotation graphs -- one clean mini-RRG per sector.
+
+    Splits the crowded all-sector RRG so each sector's path is readable in
+    isolation. Every panel shares the same axes (comparable across sectors), shades
+    the four quadrants, and fades the trail from old (faint) to current (solid), the
+    final point marked. A longer tail than the combined chart is legible here
+    because only one sector occupies each panel.
+    """
+    out = rrg_coordinates(category_panel(panel), panel,
+                          smooth=smooth, lookback=lookback, lag=lag).dropna(subset=["rs", "rs_mom"])
+    months = sorted(out["month"].unique())
+    sub = out[out["month"].isin(months[-(tail + 1):])]
+    ticker = panel.drop_duplicates("category").set_index("category")["ticker"].to_dict()
+    sectors = sorted(sub["category"].unique())
+    vals = sub[["rs", "rs_mom"]].to_numpy()
+    lim = (float(np.nanmax(np.abs(vals))) if len(vals) else 1.0) * 1.1 or 1.0
+
+    ncol = 4
+    nrow = int(np.ceil(len(sectors) / ncol))
+    fig, axes = plt.subplots(nrow, ncol, figsize=(2.7 * ncol, 2.7 * nrow),
+                             sharex=True, sharey=True)
+    axes = np.atleast_1d(axes).ravel()
+    cmap = plt.get_cmap("tab20")
+    for i, (ax, sec) in enumerate(zip(axes, sectors)):
+        _quadrant_patches(ax, lim)
+        d = sub[sub["category"] == sec].sort_values("month")
+        xs, ys = d["rs"].to_numpy(), d["rs_mom"].to_numpy()
+        color = cmap(i % 20)
+        for k in range(1, len(xs)):                       # trail, faint (old) -> solid (new)
+            ax.plot(xs[k - 1:k + 1], ys[k - 1:k + 1], "-", color=color, lw=1.3,
+                    alpha=0.15 + 0.65 * k / max(len(xs) - 1, 1))
+        if len(xs):
+            ax.plot(xs[-1], ys[-1], "o", color=color, ms=8, mec="white", mew=0.8)
+        ax.axhline(0, color="black", lw=0.6)
+        ax.axvline(0, color="black", lw=0.6)
+        ax.set_title(f"{ticker.get(sec, sec)}  {sec}", fontsize=7)
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_aspect("equal")
+        ax.tick_params(labelsize=6)
+    for ax in axes[len(sectors):]:
+        ax.set_visible(False)
+    fig.suptitle(f"Per-sector rotation paths  ({pd.to_datetime(months[-1]).date()}; "
+                 f"{tail}-month tail; latest provisional)")
+    fig.supxlabel("RS-Ratio  (standardized relative flow)", fontsize=9)
+    fig.supylabel("RS-Momentum  (3-month change)", fontsize=9)
+    fig.tight_layout()
+    return fig
+
+
 def _load(db_path=DB_PATH):
     con = sqlite3.connect(db_path)
     panel = pd.read_sql("SELECT * FROM monthly_flows", con, parse_dates=["month"])
@@ -155,6 +210,7 @@ def _figures(db_path=DB_PATH, out_dir=FIG_DIR):
         "heatmap": flow_heatmap(panel),
         "cumulative_flow": cumulative_flow_chart(panel),
         "rrg": rrg_plot(panel),
+        "rrg_small_multiples": rrg_small_multiples(panel),
     }
     for name, fig in figs.items():
         path = os.path.join(out_dir, f"{name}.png")

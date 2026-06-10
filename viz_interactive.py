@@ -15,6 +15,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.colors import hex_to_rgb
+from plotly.subplots import make_subplots
 
 from categories import category_panel
 from rotation import rrg_coordinates
@@ -123,10 +124,63 @@ def rrg_interactive(panel, smooth=3, lookback=12, lag=3, tail=3):
     return fig
 
 
+def rrg_small_multiples_interactive(panel, smooth=3, lookback=12, lag=3, tail=12):
+    """Grid of per-sector interactive rotation graphs -- one mini-RRG per sector.
+
+    Splits the crowded all-sector RRG so each sector's path reads in isolation; all
+    panels share the same axes for comparison and shade the four quadrants. The
+    trail fades old to current, the head marked; hover any point for its RS values.
+    """
+    out = rrg_coordinates(category_panel(panel), panel,
+                          smooth=smooth, lookback=lookback, lag=lag).dropna(subset=["rs", "rs_mom"])
+    months = sorted(out["month"].unique())
+    sub = out[out["month"].isin(months[-(tail + 1):])]
+    ticker = panel.drop_duplicates("category").set_index("category")["ticker"].to_dict()
+    sectors = sorted(sub["category"].unique())
+    vals = sub[["rs", "rs_mom"]].to_numpy()
+    lim = (float(np.nanmax(np.abs(vals))) if len(vals) else 1.0) * 1.1 or 1.0
+    color = {sec: _PALETTE[i % len(_PALETTE)] for i, sec in enumerate(sectors)}
+
+    ncol = 4
+    nrow = int(np.ceil(len(sectors) / ncol))
+    fig = make_subplots(rows=nrow, cols=ncol, horizontal_spacing=0.03, vertical_spacing=0.09,
+                        subplot_titles=[f"{ticker.get(s, s)}  {s}" for s in sectors])
+    quads = [(0, lim, 0, lim, "#2ca02c"), (0, lim, -lim, 0, "#e6a000"),
+             (-lim, 0, -lim, 0, "#d62728"), (-lim, 0, 0, lim, "#1f77b4")]
+    for idx, sec in enumerate(sectors):
+        r, c = idx // ncol + 1, idx % ncol + 1
+        for x0, x1, y0, y1, fc in quads:
+            fig.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1,
+                          fillcolor=_rgba(fc, 0.06), line_width=0, layer="below", row=r, col=c)
+        fig.add_hline(y=0, line=dict(color="black", width=0.6), row=r, col=c)
+        fig.add_vline(x=0, line=dict(color="black", width=0.6), row=r, col=c)
+        d = sub[sub["category"] == sec].sort_values("month")
+        col = color[sec]
+        fig.add_trace(go.Scatter(x=d["rs"], y=d["rs_mom"], mode="lines",
+                                 line=dict(color=_rgba(col, 0.5), width=1.5),
+                                 showlegend=False, hoverinfo="skip"), row=r, col=c)
+        fig.add_trace(go.Scatter(x=d["rs"].iloc[-1:], y=d["rs_mom"].iloc[-1:], mode="markers",
+                                 marker=dict(color=col, size=10, line=dict(color="white", width=1)),
+                                 showlegend=False,
+                                 hovertemplate=f"{sec}<br>RS=%{{x:.2f}}<br>mom=%{{y:.2f}}<extra></extra>"),
+                      row=r, col=c)
+
+    fig.update_xaxes(range=[-lim, lim], showticklabels=False, showgrid=False, zeroline=False)
+    fig.update_yaxes(range=[-lim, lim], showticklabels=False, showgrid=False, zeroline=False)
+    cell = 230
+    fig.update_layout(
+        title="Per-sector rotation paths  (RS-Ratio x vs RS-Momentum y; latest month provisional)",
+        width=ncol * cell + 80, height=nrow * cell + 120,
+        template="plotly_white", margin=dict(l=40, r=20, t=80, b=40))
+    for ann in fig.layout.annotations:           # shrink the subplot titles
+        ann.font.size = 11
+    return fig
+
+
 def _write(db_path=DB_PATH, out_dir=FIG_DIR):
     import os
     os.makedirs(out_dir, exist_ok=True)
-    fig = rrg_interactive(_load(db_path))
+    fig = rrg_small_multiples_interactive(_load(db_path))
     path = os.path.join(out_dir, "rrg_interactive.html")
     # Fixed div_id so identical data yields byte-identical HTML (Plotly otherwise
     # stamps a random id), letting deploy.sh skip no-op publishes.
