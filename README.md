@@ -2,6 +2,9 @@
 
 **Where is investor capital actually moving — and what is it rotating *into*?**
 
+**Live demo:** [interactive rotation graph](https://mvpitr.github.io/fund-flow-rotation/) —
+scrub the month slider to watch sectors rotate through the lead / lag / improve / weaken quadrants.
+
 This project reconstructs the flow of money across the US equity market, sector by
 sector, and turns it into a rotation map: a view of which parts of the market are
 attracting fresh capital and which are bleeding it, month over month. It is a

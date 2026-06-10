@@ -108,7 +108,9 @@ def _write(db_path=DB_PATH, out_dir=FIG_DIR):
     os.makedirs(out_dir, exist_ok=True)
     fig = rrg_interactive(_load(db_path))
     path = os.path.join(out_dir, "rrg_interactive.html")
-    fig.write_html(path, include_plotlyjs="cdn")
+    # Fixed div_id so identical data yields byte-identical HTML (Plotly otherwise
+    # stamps a random id), letting deploy.sh skip no-op publishes.
+    fig.write_html(path, include_plotlyjs="cdn", div_id="rrg")
     print(f"saved -> {path}")
 
 
