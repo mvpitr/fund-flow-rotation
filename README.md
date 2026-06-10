@@ -2,9 +2,9 @@
 
 **Where is investor capital actually moving — and what is it rotating *into*?**
 
-**Live demo:** [interactive rotation graph](https://mvpitr.github.io/fund-flow-rotation/) —
-an animated rotation graph (scrub through the months) plus a quadrant timeline of every
-sector's rotation history.
+**Live demo:** [fund-flow rotation site](https://mvpitr.github.io/fund-flow-rotation/) —
+a flow leadership board (which sectors are gaining or losing investor money now, with the
+three-month trend) and a five-year rotation strip, one row per sector.
 
 This project reconstructs the flow of money across the US equity market, sector by
 sector, and turns it into a rotation map: a view of which parts of the market are
@@ -82,7 +82,8 @@ build_universe.py     Build the multi-sector monthly panel and persist to SQLite
 categories.py         Aggregate per-fund flows to category flows, g_U, and CF(W) windows
 rotation.py           Rotation stats: relative flow, z-score, momentum, RRG coordinates
 viz.py                Static figures: rotation snapshot, rotation timeline, strength heatmap, cumulative flow, small multiples
-viz_interactive.py    Interactive Plotly page: animated rotation graph + rotation timeline (self-contained HTML)
+export_web_data.py    Bake the panel into web/src/data.json for the frontend (all math stays in Python)
+web/                  React + TypeScript + Vite frontend: SVG leadership board + ECharts rotation strip
 sanity_check.py       End-to-end validation of the panel and current rotation output
 shares_flow.py        Shares-route daily flow reference (eq:flow_shares, eq:flow_split)
 docs/fund-flow-rotation.tex  Canonical methodology paper: full math, derivations, validation (compile with tectonic)
@@ -101,8 +102,12 @@ EDGAR_IDENTITY="Your Name your@email.com" python build_universe.py
 # Validate the panel and print the current rotation snapshot
 python sanity_check.py
 
-# Render the figures into docs/figures/ (static PNGs + interactive RRG)
-python viz.py && python viz_interactive.py
+# Render the static figures into docs/figures/
+python viz.py
+
+# Build the web frontend (bakes web/src/data.json from the panel first)
+python export_web_data.py
+cd web && npm install && npm run dev    # or: npm run build; ./deploy.sh publishes
 ```
 
 ## Scope and honesty

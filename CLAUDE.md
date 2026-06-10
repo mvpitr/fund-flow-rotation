@@ -54,6 +54,7 @@ math-implementing functions reference those labels via `@math_ref` (see below).
 - `categories.py` - aggregate per-fund flows to category flows, whole-market baseline, and trailing cumulative windows.
 - `rotation.py` - rotation statistics: relative flow, z-score, momentum, and the RRG coordinates (RS-Ratio / RS-Momentum).
 - `viz.py` - static matplotlib figures (rotation snapshot, quadrant timeline, relative-strength heatmap, cumulative flow, per-sector small multiples); writes to docs/figures/.
-- `viz_interactive.py` - interactive Plotly page (animated rotation graph + quadrant timeline); writes self-contained HTML to docs/figures/.
+- `export_web_data.py` - bake the panel into `web/src/data.json` for the frontend; all math stays in the Python modules above.
+- `web/` - React + TypeScript + Vite frontend (hand-rolled SVG leadership board, ECharts rotation strip; dark instrument theme, design tokens in `web/src/index.css` mirrored for canvas in `web/src/theme.ts`). Build with `npm run build`; `deploy.sh` bakes data, builds, and publishes to GitHub Pages.
 - `sanity_check.py` - end-to-end validation and current rotation output.
 - `shares_flow.py` - shares-route daily flow reference (counterpart to the reported N-PORT route).
