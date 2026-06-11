@@ -1,0 +1,71 @@
+# Scheduled refresh: rebuild the panel from EDGAR, test, bake the JSON, build
+# the bundle, publish to gh-pages. The CI twin of ./deploy.sh -- see README
+# "Automated refresh". N-PORT filings post in quarterly waves (~60 days after
+# each fiscal quarter end), so a monthly run catches each wave within days and
+# no-change runs publish nothing.
+name: Refresh data and deploy
+
+on:
+  schedule:
+    - cron: "23 6 5 * *" # 06:23 UTC on the 5th of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-deploy
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Build the flow panel from EDGAR
+        env:
+          EDGAR_IDENTITY: ${{ secrets.EDGAR_IDENTITY }}
+        run: python build_universe.py
+
+      - name: Run the test suite
+        run: pytest
+
+      # Informational audit of the freshly built panel. continue-on-error
+      # because the return cross-check downloads prices via yfinance, which
+      # intermittently rejects requests from CI addresses; sanity_check.py
+      # prints findings rather than failing, so it gates nothing either way.
+      - name: Sanity-check the panel (informational)
+        continue-on-error: true
+        run: python sanity_check.py
+
+      - name: Bake web/src/data.json
+        run: python export_web_data.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web bundle
+        working-directory: web
+        run: |
+          npm ci --no-fund --no-audit
+          npm run build
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: web/dist
+          commit_message: "Update rotation site (scheduled refresh)"

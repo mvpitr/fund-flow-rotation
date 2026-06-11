@@ -110,6 +110,24 @@ python export_web_data.py
 cd web && npm install && npm run dev    # or: npm run build; ./deploy.sh publishes
 ```
 
+## Automated refresh
+
+A scheduled GitHub Actions workflow (`.github/workflows/refresh.yml`) keeps the live
+site current without manual deploys — the CI twin of `./deploy.sh`. On the 5th of every
+month (and on demand via workflow_dispatch) it:
+
+1. rebuilds `data/flows.db` from EDGAR (`build_universe.py`, identity from the
+   `EDGAR_IDENTITY` repo secret),
+2. runs the test suite (`pytest`) as a hard gate,
+3. runs `sanity_check.py` for the audit log (informational only — its yfinance
+   cross-check is unreliable from CI network addresses),
+4. bakes `web/src/data.json`, builds the Vite bundle, and publishes `web/dist` to the
+   `gh-pages` branch.
+
+New N-PORT filings post in quarterly waves (public ~60 days after each fiscal quarter
+end), so roughly every third run picks up three new months; when nothing changed, the
+publish step detects an identical bundle and deploys nothing.
+
 ## Scope and honesty
 
 ETFs are a large but partial slice of all invested capital, and reported data carries a
