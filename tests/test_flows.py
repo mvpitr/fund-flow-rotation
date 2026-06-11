@@ -12,8 +12,9 @@ import pandas as pd
 import pytest
 
 from shares_flow import compute_flows
-from nport_flows import _rows_from_obj, _to_monthly, reconstruct_aum
+from nport_flows import _rows_from_obj, _series_filing, _to_monthly, reconstruct_aum
 import build_universe
+import nport_flows
 
 
 # --------------------------------------------------------------------------- #
@@ -110,6 +111,66 @@ def test_to_monthly_dedupes_keeping_last():
     df = _to_monthly(rows)
     assert len(df) == 2
     assert df.loc[pd.Timestamp("2024-01-31"), "F"] == 2.0
+
+
+# --------------------------------------------------------------------------- #
+# _series_filing: series id from the raw SGML header text, retrying the
+# degraded homepage-fallback headers EDGAR's transient errors produce
+# --------------------------------------------------------------------------- #
+class _Header:
+    """Raw-text header whose repr raises, like edgartools' degraded fallback.
+
+    Guards the regression: the series id must come from header.text, never
+    str(header).
+    """
+    def __init__(self, text):
+        self.text = text
+
+    def __repr__(self):
+        raise TypeError("'NoneType' object is not iterable")
+
+
+def _filing(text_or_exc):
+    class _F:
+        cik, company, form = 1, "Trust", "NPORT-P"
+        filing_date, accession_no = "2026-03-31", "0000000000-26-000001"
+
+        @property
+        def header(self):
+            if isinstance(text_or_exc, Exception):
+                raise text_or_exc
+            return _Header(text_or_exc)
+    return _F()
+
+
+def test_series_filing_reads_id_from_raw_header_text():
+    sid, out = _series_filing(_filing("<SERIES-ID>S000006415"))
+    assert sid == "S000006415"
+
+
+def test_series_filing_retries_degraded_fetch_with_fresh_filing(monkeypatch):
+    # First fetch degraded (homepage fallback: header with empty text); the
+    # rebuilt Filing succeeds and is returned for the caller's .obj() parse.
+    good = _filing("<SERIES-ID>S000006415")
+    rebuilt = []
+    monkeypatch.setattr(nport_flows, "Filing", lambda **kw: rebuilt.append(kw) or good)
+    monkeypatch.setattr(nport_flows.time, "sleep", lambda s: None)
+
+    sid, out = _series_filing(_filing(""))
+
+    assert sid == "S000006415" and out is good
+    assert [kw["accession_no"] for kw in rebuilt] == ["0000000000-26-000001"]
+
+
+def test_series_filing_raises_after_retry_budget(monkeypatch):
+    # Persistent failure (header fetch keeps raising) must fail loudly, not
+    # silently drop the filing -- that would erase three months of one sector.
+    monkeypatch.setattr(nport_flows, "Filing",
+                        lambda **kw: _filing(ValueError("SEC returned HTML")))
+    monkeypatch.setattr(nport_flows.time, "sleep", lambda s: None)
+
+    with pytest.raises(RuntimeError, match="0000000000-26-000001"):
+        _series_filing(_filing(ValueError("SEC returned HTML")), retries=3)
 
 
 # --------------------------------------------------------------------------- #

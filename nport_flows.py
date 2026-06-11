@@ -13,14 +13,17 @@ Usage:
 
 import os
 import re
+import time
 
 import pandas as pd
 import yfinance as yf
-from edgar import Company, set_identity
+from edgar import Company, Filing, set_identity
 from edgar.funds import find_fund
 
 TICKER = "XLK"
 SERIES_RE = re.compile(r"S\d{9}")
+HEADER_RETRIES = 3
+HEADER_RETRY_WAIT = 5.0  # seconds; grows linearly per retry
 
 
 def _identity():
@@ -35,6 +38,40 @@ def _series_id(ticker):
     return find_fund(ticker).series.series_id
 
 
+def _series_filing(filing, retries=HEADER_RETRIES, wait=HEADER_RETRY_WAIT):
+    """Return (series_id, filing) from the SGML header, surviving transient EDGAR errors.
+
+    EDGAR occasionally serves an HTML error page instead of the SGML submission;
+    edgartools then quietly substitutes a header built from the filing homepage,
+    which carries no SGML metadata (and whose repr raises -- regex the raw
+    header text, never str(header)). Every NPORT-P header in the trust names its
+    series, so a missing series id always means a degraded fetch, never a
+    missing series. The degraded SGML is cached on the filing, so each retry
+    rebuilds the Filing from its public coordinates to force a fresh fetch.
+    Raises after the retry budget instead of skipping: a silently dropped
+    quarterly filing would erase three months of one sector from the panel.
+
+    Returns the filing whose fetch succeeded so the caller parses .obj() from
+    the same known-good submission.
+    """
+    err = None
+    for attempt in range(retries):
+        if attempt:
+            time.sleep(wait * attempt)
+            filing = Filing(cik=filing.cik, company=filing.company,
+                            form=filing.form, filing_date=filing.filing_date,
+                            accession_no=filing.accession_no)
+        try:
+            match = SERIES_RE.search(filing.header.text)
+            err = None
+        except Exception as e:
+            match, err = None, e
+        if match:
+            return match[0], filing
+    raise RuntimeError(f"no series id in the SGML header of {filing.accession_no} "
+                       f"after {retries} attempts") from err
+
+
 def fetch_nport_flows(ticker=TICKER):
     """Return a monthly DataFrame of reported flows/returns/net-assets for `ticker`."""
     _identity()
@@ -44,7 +81,8 @@ def fetch_nport_flows(ticker=TICKER):
     filings = Company(ticker).get_filings(form="NPORT-P")
     rows = []
     for f in filings:
-        if (SERIES_RE.search(str(f.header)) or [None])[0] == series_id:
+        sid, f = _series_filing(f)
+        if sid == series_id:
             rows.extend(_rows_from_obj(f.obj()))
     return _to_monthly(rows)
 
@@ -96,7 +134,7 @@ def fetch_many(series_to_ticker, anchor_ticker="XLK"):
     filings = Company(anchor_ticker).get_filings(form="NPORT-P")
     buckets = {tk: [] for tk in series_to_ticker.values()}
     for f in filings:
-        sid = (SERIES_RE.search(str(f.header)) or [None])[0]
+        sid, f = _series_filing(f)
         tk = series_to_ticker.get(sid)
         if tk is not None:
             buckets[tk].extend(_rows_from_obj(f.obj()))
