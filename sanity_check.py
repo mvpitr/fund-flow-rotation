@@ -61,12 +61,20 @@ def check_values(panel):
     print(f"  months with |g| > 10% (flag for inspection): {extreme}")
 
 
+def _price_window(months):
+    """Price-history window covering the panel's months: one bar before the
+    first month (so its pct_change return exists) through the last month
+    (yfinance's end is exclusive, so step one month past its bar)."""
+    return months.min() - pd.offsets.MonthBegin(2), months.max() + pd.offsets.MonthBegin(1)
+
+
 def check_returns(panel):
     print("\n" + "=" * 70)
     print("3. RETURN CROSS-CHECK  (N-PORT reported vs price-derived monthly return)")
     print("=" * 70)
     tickers = sorted(panel["ticker"].unique())
-    px = yf.download(tickers, start="2019-06-01", end="2026-05-01",
+    start, end = _price_window(panel["month"])
+    px = yf.download(tickers, start=start, end=end,
                      interval="1mo", auto_adjust=True, progress=False)["Close"]
     # Align on calendar month (Period) -- monthly bars index on month-start, the
     # panel on month-end, so a raw date join would miss everything.
