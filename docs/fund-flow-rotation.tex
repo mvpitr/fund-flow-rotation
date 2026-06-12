@@ -18,10 +18,11 @@
 \begin{abstract}
 We measure where investor capital rotates across the eleven sectors of the US equity
 market, separating investor demand from price performance, using only public data. The
-input is the net dollar creation and redemption of exchange-traded fund shares, which
-each fund reports monthly on SEC Form N-PORT. We normalize these flows by fund size,
-aggregate to sectors, and compare each sector both to the market as a whole and to its
-own history. The result is a monthly sector-flow panel covering 2019 to 2026 whose
+input is the net dollar creation and redemption of exchange-traded fund (ETF) shares,
+which each fund reports monthly to the US Securities and Exchange Commission (SEC) on
+Form N-PORT. We normalize these flows by fund size, aggregate to sectors, and compare
+each sector both to the market as a whole and to its own history. The result is a
+monthly sector-flow panel (one observation per sector per month) covering 2019 to 2026 whose
 reported returns match price-derived returns at a correlation above $0.99$, and whose
 flows and returns reconcile with reported net assets to within about one percent per
 quarter. On that panel we define the standard rotation statistics: cumulative flow,
@@ -31,16 +32,19 @@ standardized flow, relative flow, and flow momentum.
 \section{Flow versus price}
 \label{sec:flow-vs-price}
 
-A fund's assets under management move for two reasons. The market reprices the holdings
-the fund already owns, and investors add or withdraw money. Only the second is a flow.
-Over one period the two combine as
+A fund's assets under management (AUM, the market value of everything the fund holds on
+behalf of its investors) move for two reasons. The market reprices the holdings the fund
+already owns, and investors add or withdraw money. Only the second is a flow. Over one
+period the two combine as
 \begin{equation}
 \label{eq:aum_identity}
 A_t = A_{t-1}\,(1 + r_t) + F_t,
 \end{equation}
 where $A_t$ is assets under management at the end of period $t$, $r_t$ is the fund's
-total return over the period, and $F_t$ is the net dollar flow. The first term is what
-the previous period's money grew to on its own. Anything beyond it is new investor money.
+total return over the period, and $F_t$ is the net dollar flow. Total return is the
+fractional gain on the holdings counting both price changes and the income they pay out,
+such as dividends. The first term is therefore what the previous period's money grew to
+on its own. Anything beyond it is new investor money.
 Rearranging \eqref{eq:aum_identity} isolates the quantity of interest,
 \begin{equation}
 \label{eq:flow_residual}
@@ -62,9 +66,11 @@ inferred rather than observed. Two routes make it more direct.
 
 \subsection{The shares route}
 
-An exchange-traded fund issues new shares when demand arrives and redeems them when
-demand leaves, each at approximately net asset value. The change in shares outstanding
-therefore reveals the flow,
+An exchange-traded fund trades on an exchange like a stock, but unlike a stock its share
+count is not fixed: the fund issues new shares when demand arrives and cancels them when
+demand leaves, each exchanged at approximately net asset value (NAV), the per-share
+market value of the fund's holdings. The change in shares outstanding therefore reveals
+the flow,
 \begin{equation}
 \label{eq:flow_shares}
 F_t = (S_t - S_{t-1})\,\mathrm{NAV}_t,
@@ -87,15 +93,17 @@ so a pure split contributes zero flow.
 \subsection{The reported route}
 
 A daily shares-outstanding series for ETFs is not available from free sources. Form
-N-PORT supplies the flow directly instead. Every US fund files it monthly, reporting for
-each of the three months in the period the total dollar value of share sales, redemptions,
-and dividend reinvestment (Item B.8), the monthly total return (Item B.7), and net assets
-at the period end (Item B.1). The net flow is
+N-PORT, the portfolio report the SEC requires of every US registered fund, supplies the
+flow directly instead. Funds file it monthly, and each filing reports, for each of the
+three months in its quarter, the total dollar value of share sales, redemptions, and
+dividend reinvestment (Item B.8 of the form), the monthly total return (Item B.7), and
+net assets at the period end (Item B.1). The net flow is
 \begin{equation}
 \label{eq:flow_reported}
 F_t = \text{sales}_t - \text{redemptions}_t,
 \end{equation}
-with reinvestment excluded as internal recycling of distributions. This is the realized
+with reinvestment excluded: a reinvested dividend buys new shares using cash the fund
+itself paid out, so no outside money has moved. This is the realized
 data source: monthly granularity, with filings posted about two months after the period.
 Equation \eqref{eq:flow_split} remains the route for daily data when a shares feed is
 available.
@@ -124,8 +132,9 @@ A_{t-1}\,(1 + r_t) + F_t & \text{otherwise,}
 \end{equation}
 snapping to each reported value and rolling \eqref{eq:aum_identity} across the two
 intervening months. Snapping each quarter is required because $r_t$ is a total return:
-it includes distributions, which leave the fund as cash, so an unbroken roll overstates
-assets in proportion to dividend yield. Re-anchoring at every report bounds that bias to
+it counts dividends as if they stayed invested, but the dividend cash is actually paid
+out to investors and leaves the fund, so an unbroken roll overstates assets in
+proportion to dividend yield. Re-anchoring at every report bounds that bias to
 a single quarter. The remaining sub-quarter error is small enough to leave $g_t$ accurate
 (Section~\ref{sec:validation}).
 
@@ -161,7 +170,7 @@ sustained trend,
 
 Categories differ in their typical flow volatility, so raw $g_{c,t}$ is not comparable
 across them. Standardizing against each category's own recent history gives a comparable
-score,
+score -- a z-score, distance from the recent norm in units of typical variation,
 \begin{equation}
 \label{eq:zscore}
 z_{c,t} = \frac{g_{c,t} - \mu_{L}(g_c)}{\sigma_{L}(g_c)},
@@ -242,7 +251,9 @@ falling), lagging (weak and falling), and improving (weak and rising). Standardi
 every sector on a common scale, so the chart compares rotation rather than raw volatility;
 the trailing mean keeps a single noisy month from dominating the path. The figures use
 $w=3$, $L=12$, and $D=3$, a quarter for the smoothing and momentum horizons. A category
-typically traces these quadrants clockwise, and the path is the rotation.
+typically traces these quadrants clockwise, and the path is the rotation. The
+construction mirrors the relative rotation graph (RRG) practitioners use to chart
+price-based relative strength; here the underlying signal is flow.
 
 \section{Validation}
 \label{sec:validation}
@@ -308,8 +319,10 @@ Capital enters Energy and Utilities and leaves Communication Services and Health
 \label{sec:data}
 
 The source is SEC Form N-PORT: monthly, public, with a reporting lag near two months, and
-coverage from late 2019. The universe is the eleven Select Sector SPDR funds, one per GICS
-sector, which together tile the US equity market. Each sector currently holds one fund, so
+coverage from late 2019. The universe is the eleven Select Sector SPDR funds (XLK, XLE,
+XLF, and so on), the ETF family that divides the S\&P 500 into the eleven sectors of the
+Global Industry Classification Standard (GICS), one fund per sector; together they tile
+the US large-cap equity market. Each sector currently holds one fund, so
 \eqref{eq:category_flow} reduces to an identity and \eqref{eq:category_g} equals that fund's
 growth rate; the aggregation becomes load-bearing once a category holds several funds.
 
