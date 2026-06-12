@@ -1,4 +1,4 @@
-"""Phase 4: rotation statistics on the category panel.
+"""Rotation statistics on the category panel.
 
 Rotation is the movement of capital between sectors over time. These functions
 project the paper's rotation equations (docs/fund-flow-rotation.tex, section

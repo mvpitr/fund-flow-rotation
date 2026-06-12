@@ -1,4 +1,4 @@
-"""Offline, deterministic unit tests for the Phase 3 category aggregation.
+"""Offline, deterministic unit tests for the category aggregation.
 
 No network: every test builds a synthetic (ticker, month) panel so the aggregation
 math is exercised in isolation, including the many-funds-per-category case that the

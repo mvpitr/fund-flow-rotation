@@ -1,4 +1,4 @@
-"""Phase 5: static matplotlib figures for the rotation metrics.
+"""Static matplotlib figures for the rotation metrics.
 
 Each view answers one question, instead of packing strength, momentum, time, and
 eleven sectors into a single chart:

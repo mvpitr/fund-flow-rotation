@@ -1,4 +1,4 @@
-"""Phase 3: aggregate per-fund flows to categories and form trailing windows.
+"""Aggregate per-fund flows to categories and form trailing windows.
 
 Projects the aggregation and cumulative-flow equations of the methodology paper
 (docs/fund-flow-rotation.tex) onto the persisted (ticker, month) panel:

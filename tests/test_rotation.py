@@ -1,4 +1,4 @@
-"""Offline, deterministic unit tests for the Phase 4 rotation statistics.
+"""Offline, deterministic unit tests for the rotation statistics.
 
 No network: every test builds a synthetic (ticker, month) panel so the rotation
 math is exercised in isolation. Run with `pytest` from the repo root.
