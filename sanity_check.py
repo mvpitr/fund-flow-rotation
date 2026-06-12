@@ -3,6 +3,10 @@
 Validates the persisted SQLite panel (data/flows.db) on its own terms and against
 independent data (prices), then prints what the latest data implies. Read-only.
 
+Two recurring terms: an "anchor" is a reported quarter-end net-assets value,
+taken as ground truth for the asset reconstruction; the AUM identity is
+A_t = A_{t-1}(1+r_t) + F_t, assets grow by return plus net new money.
+
 Usage:
     python sanity_check.py
 """

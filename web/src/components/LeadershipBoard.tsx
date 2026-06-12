@@ -16,7 +16,11 @@ const CF_X = 950 // right edge of the dollar column
 const HEADER_H = 30
 const ROW_H = 34
 
-/** Ranked board: signed RS bar now, hollow marker `lag` months ago, dollars right. */
+/**
+ * Ranked board: signed RS bar now (RS = relative strength, the sector's flow vs
+ * the whole market in sigma units), hollow marker `lag` months ago, trailing
+ * dollar flow on the right.
+ */
 export function LeadershipBoard({ data }: { data: Payload }) {
   const last = data.months.length - 1
   const ghostIdx = last - data.lag

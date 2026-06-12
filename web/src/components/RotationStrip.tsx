@@ -9,7 +9,11 @@ import { fmtDollars, fmtMonth, fmtSigma } from '../format'
 
 echarts.use([HeatmapChart, GridComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
 
-/** Sector x month strip of RS: teal gaining, coral losing, background = no signal. */
+/**
+ * Sector x month strip of RS (relative strength: the sector's flow vs the whole
+ * market, standardized to sigma units): teal gaining, coral losing, background =
+ * no signal.
+ */
 export function RotationStrip({ data }: { data: Payload }) {
   const ref = useRef<HTMLDivElement>(null)
 

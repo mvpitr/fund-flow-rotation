@@ -1,8 +1,11 @@
 """Shares-route daily fund flows for a single ETF (the daily counterpart to the
 reported N-PORT route in nport_flows.py).
 
-Flow is valued from the change in shares outstanding, net of splits, priced at the
-market close (a documented NAV proxy). This is the reference implementation of the
+An ETF's share count is not fixed: shares are created when investor money comes
+in and cancelled when it leaves, so the change in shares outstanding, net of
+splits, reveals the flow. Each share is valued at the market close, a documented
+proxy for NAV (net asset value, the per-share value of the fund's holdings).
+This is the reference implementation of the
 shares route; see docs/fund-flow-rotation.tex (eq:flow_shares, eq:flow_split). Free
 sources serve no historical ETF shares series, so the production panel is built
 from the reported route instead -- this module stays as the shares-route reference

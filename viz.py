@@ -9,6 +9,11 @@ eleven sectors into a single chart:
     cumulative_flow_chart how many dollars? (trailing cumulative flow, magnitude)
     rrg_small_multiples   one sector's full path, in isolation (detail view)
 
+RRG stands for relative rotation graph: the strength-vs-momentum chart built by
+rotation.rrg_coordinates, whose four quadrants (leading / weakening / lagging /
+improving) name a sector's rotation phase. "Provisional" marks the newest month,
+whose filings may not all have posted yet.
+
 Plotting only -- the math lives in categories.py / rotation.py, so no @math_ref
 here. Each function returns a matplotlib Figure; the CLI writes PNGs to
 docs/figures/. Styling is deliberately minimal for now.
@@ -47,8 +52,9 @@ def _rrg_panel(panel, smooth, lookback, lag):
     """RRG coordinates pivoted to two aligned sector x month grids (rs, rs_mom).
 
     Rows are sorted with the strongest current relative strength on top; leading
-    warm-up months where no sector has an rs value yet are dropped. Shared by the
-    heatmap and the quadrant timeline (static and interactive).
+    warm-up months -- those consumed by the smoothing and lookback windows before
+    rs is defined for any sector -- are dropped. Shared by the heatmap and the
+    quadrant timeline (static and interactive).
     """
     cat = rrg_coordinates(category_panel(panel), panel,
                           smooth=smooth, lookback=lookback, lag=lag)

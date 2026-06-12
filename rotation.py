@@ -9,9 +9,12 @@ Rotation) onto the per-(category, month) panel produced by categories.py:
     momentum        eq:momentum           m_{c,t}   = rel_{c,t} - rel_{c,t-D}
     turnover        eq:rotation_turnover  T_t = (1/2) sum_c |A_{c,t-1} rel_{c,t}|
 
-The rotation-graph coordinates (eq:rel_smoothed, eq:rs_ratio, eq:rs_momentum) smooth
-relative flow with a trailing mean, then apply the same standardization and momentum
-operators to it; see rrg_coordinates. Read-only over the panel; no network.
+The rotation graph plots each sector's relative strength against its momentum --
+the flow analogue of the relative rotation graph (RRG) practitioners use for
+price-based leadership. Its coordinates (eq:rel_smoothed, eq:rs_ratio,
+eq:rs_momentum) smooth relative flow with a trailing mean, then apply the same
+standardization and momentum operators to it; see rrg_coordinates. Read-only
+over the panel; no network.
 """
 
 import pandas as pd

@@ -1,11 +1,15 @@
 """Build a monthly flow panel for a universe of ETFs and persist it.
 
-Reads the classification map (universe.csv), pulls reported monthly flows from
-SEC N-PORT for every fund in one pass (nport_flows.fetch_many), normalizes via
-the AUM identity, and stores a tidy panel in a SQLite database (data/flows.db).
+The universe is the fixed set of funds under study; universe.csv maps each
+ticker to its sector and SEC series id. This script pulls reported monthly
+flows from SEC N-PORT for every fund in one pass (nport_flows.fetch_many),
+normalizes them by fund size via the assets-under-management (AUM) identity,
+and stores a tidy panel -- long format, one row per (ticker, month) -- in a
+SQLite database (data/flows.db).
 
-The store is keyed on (ticker, month), so re-running upserts new months as fresh
-N-PORT filings post -- this is how the "future data" accrues over time.
+The store is keyed on (ticker, month), so re-running upserts (inserts new rows,
+updates existing ones in place) as fresh N-PORT filings post -- this is how the
+"future data" accrues over time.
 
 Usage:
     EDGAR_IDENTITY="Your Name your@email.com" python build_universe.py

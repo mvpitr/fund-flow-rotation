@@ -1,9 +1,13 @@
 """Backfill monthly fund flows from SEC Form N-PORT (free, authoritative).
 
-Yahoo/FMP free tiers give no historical ETF shares series, but every ETF files
-Form N-PORT, which reports — for each of the 3 months in the period — share
-sales/redemptions (Item B.8), total return (B.7) and net assets (B.1). So we read
-*reported* monthly flows directly rather than estimating them from shares (see
+N-PORT is the monthly portfolio report the SEC (the US market regulator) requires
+of every registered fund, published on EDGAR, the SEC's public filing database.
+Free price vendors give no historical ETF shares-outstanding series, but each
+N-PORT filing reports — for each of the 3 months in its quarter — the dollar value
+of fund-share sales and redemptions (Item B.8 of the form), the monthly total
+return (B.7: price change plus income such as dividends, as a fraction), and net
+assets (B.1: the market value of everything the fund holds). So we read *reported*
+monthly flows directly rather than estimating them from share counts (see
 docs/fund-flow-rotation.tex, eq:flow_reported). Monthly granularity, ~2-month lag.
 
 Usage:
@@ -34,14 +38,21 @@ def _identity():
 
 
 def _series_id(ticker):
-    """Resolve an ETF ticker to its SEC series id (e.g. XLK -> S000006415)."""
+    """Resolve an ETF ticker to its SEC series id (e.g. XLK -> S000006415).
+
+    Several funds can live inside one trust -- a single legal entity that files
+    with the SEC on behalf of them all -- and the series id is the SEC's
+    identifier for one fund within it.
+    """
     return find_fund(ticker).series.series_id
 
 
 def _series_filing(filing, retries=HEADER_RETRIES, wait=HEADER_RETRY_WAIT):
     """Return (series_id, filing) from the SGML header, surviving transient EDGAR errors.
 
-    EDGAR occasionally serves an HTML error page instead of the SGML submission;
+    SGML is the legacy text format EDGAR bundles each submission in; its header
+    names the series the filing belongs to. EDGAR occasionally serves an HTML
+    error page instead of the SGML submission;
     edgartools then quietly substitutes a header built from the filing homepage,
     which carries no SGML metadata (and whose repr raises -- regex the raw
     header text, never str(header)). Every NPORT-P header in the trust names its
@@ -127,9 +138,10 @@ def _to_monthly(rows):
 def fetch_many(series_to_ticker, anchor_ticker="XLK"):
     """Pull the trust's N-PORT filings ONCE and bucket monthly rows by ticker.
 
-    All Select Sector SPDRs live in one trust, so a single pass over its filings
-    (filtering each by its SGML-header series id) covers the whole universe far
-    more cheaply than scraping per ticker. Returns {ticker: monthly DataFrame}."""
+    All Select Sector SPDRs live in one trust (one legal entity files for all
+    eleven funds), so a single pass over its filings (filtering each by its
+    SGML-header series id) covers the whole universe far more cheaply than
+    scraping per ticker. Returns {ticker: monthly DataFrame}."""
     _identity()
     filings = Company(anchor_ticker).get_filings(form="NPORT-P")
     buckets = {tk: [] for tk in series_to_ticker.values()}
@@ -147,12 +159,16 @@ def reconstruct_aum(df):
     @math_ref eq:aum_recursion
     @math_ref eq:normalized_flow
 
-    Net assets are reported only at quarter-ends, so we SNAP to each reported value
-    (re-anchor) and roll the identity AUM_t = AUM_{t-1}(1+r_t)+F_t only across the two
-    in-between months. Re-anchoring every quarter is important: N-PORT's r_t is a
-    TOTAL return (includes distributions), but distributions paid out actually leave
-    the fund, so a long single-anchor roll over-states AUM for high-yield sectors.
-    Snapping each quarter bounds that bias to <= one quarter."""
+    AUM (assets under management) is the market value of everything the fund
+    holds; an "anchor" is a reported quarter-end net-assets value, taken as
+    ground truth. Net assets are reported only at quarter-ends, so we SNAP to
+    each reported value (re-anchor) and roll the identity
+    AUM_t = AUM_{t-1}(1+r_t)+F_t only across the two in-between months.
+    Re-anchoring every quarter is important: N-PORT's r_t is a TOTAL return --
+    it counts dividends as if they stayed invested, but the dividend cash is
+    actually paid out and leaves the fund -- so a long single-anchor roll
+    over-states AUM for high-yield sectors. Snapping each quarter bounds that
+    bias to <= one quarter."""
     df = df.copy()
     anchor = df["net_assets"].first_valid_index()
     if anchor is None:

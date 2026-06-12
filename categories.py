@@ -24,7 +24,8 @@ def category_panel(panel):
 
     Sums member dollar flows and assets within each category and month, then
     normalizes by the prior month's category assets to get the category growth
-    rate. The result is itself a tidy long frame keyed on (category, month), so
+    rate (the fraction of the category's size that arrived as new money). The
+    result is itself a tidy long frame -- one row per (category, month) -- so
     the same rotation statistics apply to it as to a single fund.
 
     A category's prior assets A_{c,t-1} are summed over the funds present in month
