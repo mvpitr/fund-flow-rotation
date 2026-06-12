@@ -150,7 +150,7 @@ which serves as the baseline in Section~\ref{sec:rotation}.
 \section{Rotation}
 \label{sec:rotation}
 
-Rotation is movement of capital between categories over time. Four statistics describe it.
+Rotation is movement of capital between categories over time. Five statistics describe it.
 
 Monthly flow is noisy. Trailing cumulative flow over a window of $W$ months shows the
 sustained trend,
@@ -183,6 +183,31 @@ A positive value means the category attracts more than its market-weighted share
 Asset-weighting \eqref{eq:relative_flow} and summing over categories gives zero, since the
 weighted average of $g_{c,t}$ is $g_{U,t}$ by \eqref{eq:universe_g}; relative flows are a
 zero-sum reallocation.
+
+The reallocation has a measurable size. The dollar rotation flow of a category,
+\begin{equation}
+\label{eq:rotation_dollars}
+R_{c,t} = A_{c,t-1}\,\mathrm{rel}_{c,t} = F_{c,t} - A_{c,t-1}\,g_{U,t},
+\end{equation}
+is its flow in excess of its assets growing at the universe rate, splitting the flow as
+$F_{c,t} = A_{c,t-1}\,g_{U,t} + R_{c,t}$: tide plus rotation. The $R_{c,t}$ sum to zero
+each month, so the positive legs match the negative legs dollar for dollar, and either
+side is the gross rotation turnover,
+\begin{equation}
+\label{eq:rotation_turnover}
+T_t = \frac{1}{2}\sum_c \lvert R_{c,t}\rvert, \qquad
+\tau_t = \frac{T_t}{\sum_c A_{c,t-1}},
+\end{equation}
+the smallest total of dollars that must move between categories to turn the pro-rata
+allocation $\{A_{c,t-1}\,g_{U,t}\}$ into the observed one. The rate $\tau_t$ expresses
+the same quantity as a fraction of prior universe assets, comparable across a sample in
+which assets grow severalfold. Both are computed on raw monthly relative flow, where the
+cancellation is exact, and only in months where every category carries prior assets,
+since a partial sum understates the turnover. Turnover is a lower bound on cross-sector
+movement: reallocation that nets out across investors within a month is invisible. Over
+the panel the median month rotates \$3.0 billion, $1.2$ percent of universe assets; the
+largest readings are January 2021 (\$6.7 billion) and April 2020 ($\tau_t = 4.3$
+percent).
 
 Whether a category's relative strength is rising or fading is its momentum over $D$ periods,
 \begin{equation}

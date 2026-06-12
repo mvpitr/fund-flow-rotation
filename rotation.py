@@ -4,14 +4,17 @@ Rotation is the movement of capital between sectors over time. These functions
 project the paper's rotation equations (docs/fund-flow-rotation.tex, section
 Rotation) onto the per-(category, month) panel produced by categories.py:
 
-    relative flow   eq:relative_flow   rel_{c,t} = g_{c,t} - g_{U,t}
-    standardized    eq:zscore          z_{c,t}   = (g_{c,t} - mu_L) / sigma_L
-    momentum         eq:momentum        m_{c,t}   = rel_{c,t} - rel_{c,t-D}
+    relative flow   eq:relative_flow      rel_{c,t} = g_{c,t} - g_{U,t}
+    standardized    eq:zscore             z_{c,t}   = (g_{c,t} - mu_L) / sigma_L
+    momentum        eq:momentum           m_{c,t}   = rel_{c,t} - rel_{c,t-D}
+    turnover        eq:rotation_turnover  T_t = (1/2) sum_c |A_{c,t-1} rel_{c,t}|
 
 The rotation-graph coordinates (eq:rel_smoothed, eq:rs_ratio, eq:rs_momentum) smooth
 relative flow with a trailing mean, then apply the same standardization and momentum
 operators to it; see rrg_coordinates. Read-only over the panel; no network.
 """
+
+import pandas as pd
 
 from categories import universe_g
 
@@ -99,3 +102,28 @@ def rrg_coordinates(cat, panel, smooth=3, lookback=12, lag=3):
     cat = z_score(cat, col="rel_bar", lookback=lookback, out="rs")
     cat = momentum(cat, col="rs", lag=lag, out="rs_mom")
     return cat
+
+
+def rotation_turnover(cat, panel):
+    """Gross rotation turnover: the dollars that moved between categories each month.
+
+    The dollar rotation flow R_{c,t} = A_{c,t-1} rel_{c,t} = F_{c,t} - A_{c,t-1} g_{U,t}
+    is a category's flow in excess of its assets growing at the universe rate. By the
+    conservation identity the R sum to zero each month, so half their absolute sum
+    T_t is the matched size of the positive and negative legs -- the money actually
+    rotating -- and tau_t = T_t / sum_c A_{c,t-1} is that as a fraction of prior
+    universe assets. Computed on raw monthly relative flow, where the cancellation
+    is exact. Months where any category lacks rel or prior assets are NaN, not
+    partial sums: a partial sum understates T and breaks the leg equality. Returns
+    one row per month with columns 'T' (dollars) and 'tau' (rate).
+
+    @math_ref eq:rotation_dollars
+    @math_ref eq:rotation_turnover
+    """
+    cat = relative_flow(cat, panel)
+    rel = cat.pivot(index="month", columns="category", values="rel")
+    A = cat.pivot(index="month", columns="category", values="aum_prev")
+    R = A * rel
+    T = (0.5 * R.abs().sum(axis=1)).where(R.notna().all(axis=1))
+    tau = T / A.sum(axis=1)
+    return pd.DataFrame({"month": T.index, "T": T.values, "tau": tau.values})

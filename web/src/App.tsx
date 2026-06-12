@@ -2,6 +2,7 @@ import rawData from './data.json'
 import type { Payload } from './types'
 import { LeadershipBoard } from './components/LeadershipBoard'
 import { RotationStrip } from './components/RotationStrip'
+import { TurnoverStrip } from './components/TurnoverStrip'
 import { fmtMonth } from './format'
 
 const data = rawData as unknown as Payload
@@ -41,6 +42,17 @@ export default function App() {
           the last month is provisional.
         </p>
         <RotationStrip data={data} />
+      </section>
+
+      <section className="card">
+        <h2>Rotation intensity</h2>
+        <p className="sub">
+          Dollars that changed sectors each month. Each sector&apos;s flow, less its
+          pro-rata share of the market-wide tide, nets to zero across sectors; the
+          matched size of the winning and losing sides is the money actually
+          rotating. Taller bars mean a more violent rotation, whoever wins it.
+        </p>
+        <TurnoverStrip data={data} />
       </section>
 
       <footer>

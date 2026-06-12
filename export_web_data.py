@@ -3,9 +3,10 @@
 The web page is a pure projection: every number it shows is computed here, in
 Python, by the same modules the figures and tests use -- rs from
 rotation.rrg_coordinates (via viz._rrg_panel), dollar windows from
-categories.cumulative_flow. The exporter bakes them into web/src/data.json at
-build time, which is what lets the deployed site stay a static page with no
-backend. Persistence only -- no @math_ref.
+categories.cumulative_flow, turnover from rotation.rotation_turnover. The
+exporter bakes them into web/src/data.json at build time, which is what lets
+the deployed site stay a static page with no backend. Persistence only -- no
+@math_ref.
 """
 
 import json
@@ -14,6 +15,7 @@ import os
 import pandas as pd
 
 from categories import category_panel, cumulative_flow
+from rotation import rotation_turnover
 from viz import _load, _rrg_panel
 
 OUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -29,10 +31,13 @@ def build_payload(panel, smooth=3, lookback=12, lag=3, window=6):
 
     Months are trimmed to where rs exists (viz._rrg_panel); NaN becomes null.
     `lag` is shipped so the frontend can mark "lag months ago" without
-    recomputing anything.
+    recomputing anything. The turnover block keeps its own (longer) month axis:
+    T_t needs only one month of prior assets, so its history starts before the
+    rs warmup window.
     """
     rs, _ = _rrg_panel(panel, smooth, lookback, lag)
-    cat = cumulative_flow(category_panel(panel), window=window)
+    cp = category_panel(panel)
+    cat = cumulative_flow(cp, window=window)
     cf = cat.pivot(index="category", columns="month", values=f"CF{window}").reindex(
         index=rs.index, columns=rs.columns)
     flow = cat.pivot(index="category", columns="month", values="F").reindex(
@@ -47,8 +52,15 @@ def build_payload(panel, smooth=3, lookback=12, lag=3, window=6):
         "cf": _series(cf, sec, 0),
         "flow": _series(flow, sec, 0),
     } for sec in rs.index]
+    turn = rotation_turnover(cp, panel).dropna()
+    turnover = {
+        "months": [pd.Timestamp(m).date().isoformat() for m in turn["month"]],
+        "T": [round(float(v)) for v in turn["T"]],
+        "tau": [round(float(v), 4) for v in turn["tau"]],
+    }
     return {"as_of": months[-1], "provisional": True, "window": window,
-            "lag": lag, "months": months, "sectors": sectors}
+            "lag": lag, "months": months, "sectors": sectors,
+            "turnover": turnover}
 
 
 def _write(out_path=OUT_PATH):

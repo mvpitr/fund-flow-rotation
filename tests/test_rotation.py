@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from categories import category_panel
-from rotation import relative_flow, z_score, momentum, rrg_coordinates
+from rotation import relative_flow, z_score, momentum, rrg_coordinates, rotation_turnover
 
 
 def _panel(rows):
@@ -243,3 +243,60 @@ def test_relative_flow_is_zero_sum_in_dollars():
             assert weighted == pytest.approx(-f_entrant)   # residual = entrant's flow
         elif scale > 0:
             assert abs(weighted) / scale < 1e-12, f"violated at {month}"
+
+
+# --------------------------------------------------------------------------- #
+# rotation turnover: T_t = matched legs of the conservation identity.
+# --------------------------------------------------------------------------- #
+def test_rotation_turnover_two_sector_hand_case():
+    # M1: g_U = (10 - 2) / (100 + 300) = 0.02. R_Tech = 10 - 100*0.02 = +8,
+    # R_Energy = -2 - 300*0.02 = -8 -> T = 8 dollars, tau = 8/400 = 0.02.
+    panel = _panel([
+        ("XLK", "Technology", M0, 0.0, 100.0),
+        ("XLE", "Energy",     M0, 0.0, 300.0),
+        ("XLK", "Technology", M1, 10.0, 112.0),
+        ("XLE", "Energy",     M1, -2.0, 295.0),
+    ])
+    out = rotation_turnover(category_panel(panel), panel).set_index("month")
+    assert out.loc[M1, "T"] == pytest.approx(8.0)
+    assert out.loc[M1, "tau"] == pytest.approx(0.02)
+    assert np.isnan(out.loc[M0, "T"])          # no prior assets at the first month
+
+
+def test_rotation_turnover_pro_rata_flows_are_zero():
+    # Flows exactly proportional to prior assets: pure tide, no rotation.
+    panel = _panel([
+        ("XLK", "Technology", M0, 0.0, 100.0),
+        ("XLE", "Energy",     M0, 0.0, 300.0),
+        ("XLK", "Technology", M1, 25.0, 130.0),
+        ("XLE", "Energy",     M1, 75.0, 380.0),
+    ])
+    out = rotation_turnover(category_panel(panel), panel).set_index("month")
+    assert out.loc[M1, "T"] == pytest.approx(0.0)
+
+
+def test_rotation_turnover_partial_month_is_nan():
+    # A category entering at M1 has no prior assets; the month must be NaN, not
+    # a partial sum (which would understate T and break the leg equality).
+    panel = _panel([
+        ("XLK", "Technology", M0, 0.0, 100.0),
+        ("XLE", "Energy",     M0, 0.0, 300.0),
+        ("XLK", "Technology", M1, 10.0, 112.0),
+        ("XLE", "Energy",     M1, -2.0, 295.0),
+        ("XLF", "Financials", M1, 50.0, 500.0),
+    ])
+    out = rotation_turnover(category_panel(panel), panel).set_index("month")
+    assert np.isnan(out.loc[M1, "T"])
+
+
+def test_rotation_turnover_legs_match_independent_recomputation():
+    # Independent path: R = F - A_prev * F_U/A_U from raw pivots. The positive
+    # and negative legs must each equal T on a multi-month varying panel.
+    panel = _multi_month_panel()
+    cat = category_panel(panel)
+    T = rotation_turnover(cat, panel).set_index("month")["T"].dropna()
+    F = cat.pivot(index="month", columns="category", values="F")
+    A = cat.pivot(index="month", columns="category", values="aum_prev")
+    R = F.sub(A.div(A.sum(axis=1), axis=0).mul(F.sum(axis=1), axis=0)).loc[T.index]
+    assert np.allclose(R.clip(lower=0).sum(axis=1), T)
+    assert np.allclose(-R.clip(upper=0).sum(axis=1), T)

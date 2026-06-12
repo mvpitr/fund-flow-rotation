@@ -40,3 +40,16 @@ def test_payload_trims_warmup():
     p = build_payload(_panel(), smooth=1, lookback=3, lag=1, window=3)
     first = [s["rs"][0] for s in p["sectors"]]
     assert any(v is not None for v in first)         # no all-null leading months
+
+
+def test_payload_turnover_block():
+    p = build_payload(_panel(), smooth=1, lookback=3, lag=1, window=3)
+    t = p["turnover"]
+    assert len(t["months"]) == len(t["T"]) == len(t["tau"]) > 0
+    assert t["months"] == sorted(t["months"])        # chronological
+    assert all(v >= 0 for v in t["T"])               # gross turnover is non-negative
+    assert all(0 <= v < 1 for v in t["tau"])
+    # T needs only one month of prior assets, so its history starts no later
+    # than the rs-trimmed month axis.
+    assert t["months"][0] <= p["months"][0]
+    json.dumps(p)                                    # round-trips to JSON

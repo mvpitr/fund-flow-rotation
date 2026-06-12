@@ -45,6 +45,9 @@ monthly history. From it, three views fall out:
 - **The rotation map** — each sector's flow relative to the whole-market tide,
   standardized against its own history, and the momentum of that relative strength —
   placing each sector in a lead / lag / improve / weaken quadrant.
+- **The intensity** — gross rotation turnover: the dollars that changed sectors each
+  month. Above- and below-market flows cancel exactly across sectors, so the matched
+  size of the two sides measures how violent the rotation is, whoever wins it.
 
 For example, a recent reading shows capital rotating out of the prior growth leadership
 (Technology, Communication Services, Financials) and into Energy, defensives (Utilities,

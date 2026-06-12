@@ -6,6 +6,12 @@ export interface SectorSeries {
   flow: (number | null)[]
 }
 
+export interface TurnoverBlock {
+  months: string[]
+  T: number[]
+  tau: number[]
+}
+
 export interface Payload {
   as_of: string
   provisional: boolean
@@ -13,4 +19,5 @@ export interface Payload {
   lag: number
   months: string[]
   sectors: SectorSeries[]
+  turnover: TurnoverBlock
 }
