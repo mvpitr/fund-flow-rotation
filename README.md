@@ -3,8 +3,10 @@
 **Where is investor capital actually moving — and what is it rotating *into*?**
 
 **Live demo:** [fund-flow rotation site](https://mvpitr.github.io/fund-flow-rotation/) —
-a flow leadership board (which sectors are gaining or losing investor money now, with the
-three-month trend) and a five-year rotation strip, one row per sector.
+a flow leadership board (which sectors were gaining or losing investor money as of
+March 2026, with the three-month trend) and a five-year rotation strip, one row per
+sector. (N-PORT data posts roughly 60 days after each fiscal quarter end, so the board
+reports a closed month, not the current one.)
 
 This project reconstructs the flow of money across the US equity market, sector by
 sector, and turns it into a rotation map: a view of which parts of the market are
@@ -49,12 +51,19 @@ monthly history. From it, three views fall out:
   month. Above- and below-market flows cancel exactly across sectors, so the matched
   size of the two sides measures how violent the rotation is, whoever wins it.
 
-For example, a recent reading shows capital rotating out of the prior growth leadership
-(Technology, Communication Services, Financials) and into Energy, defensives (Utilities,
-Health Care) and Industrials — a classic late-cycle pattern, visible in *demand* well
-before it shows up as a narrative. The planned visual layer renders this as a flow
-heatmap and a Relative Rotation Graph (RRG) tracing each sector's path through the
-lead / lag / improve / weaken quadrants over time.
+As an illustration of what the map surfaces: in the March 2026 panel, the standardized
+relative-flow ranking runs from Energy (+3.3σ), Materials (+1.2σ) and Industrials
+(+0.6σ) at the top down to Communication Services (−4.6σ), Consumer Discretionary
+(−1.7σ) and Technology (−1.5σ) at the bottom. That is a description of where reported
+money went over the smoothing window — an ordering to look at, not a forecast, a regime
+call, or a claim about what caused it.
+
+The visual layer exists in two parts. `python viz.py` renders static figures into
+`docs/figures/`: a flow heatmap, a Relative Rotation Graph (RRG) placing each sector in
+the lead / lag / improve / weaken quadrants, a per-sector small-multiples version of the
+same, a quadrant timeline, and a cumulative-flow chart. The live site is a separate and
+narrower view — leadership board, rotation strip, turnover strip — and does **not**
+render the RRG; that chart is currently static-figure only.
 
 ## How it works
 
@@ -133,7 +142,30 @@ publish step detects an identical bundle and deploys nothing.
 
 ## Scope and honesty
 
-ETFs are a large but partial slice of all invested capital, and reported data carries a
-modest lag. This is a deliberately transparent proxy for institutional positioning data,
-not a replacement for it — the methodology paper is explicit about every assumption,
-approximation, and limitation behind the numbers.
+ETFs are a large but partial slice of all invested capital. This is a deliberately
+transparent proxy for institutional positioning data, not a replacement for it — the
+methodology paper is explicit about every assumption, approximation, and limitation
+behind the numbers. The specific limitations a reader should hold onto:
+
+- **Single fund family.** The universe is one issuer's sector ETFs — the eleven Select
+  Sector SPDRs — and nothing else. A dollar leaving XLK for a competing technology ETF
+  reads here as a technology outflow, when it is a vehicle switch rather than a change
+  of view on the sector.
+
+- **Standardization sample.** The panel holds 81 monthly observations per sector
+  (July 2019 through March 2026), and each z-score standardizes against only the twelve
+  months immediately prior to it. A history this short is sensitive to the regimes
+  inside it: the 2020 flow shock sits in the sample, and sits inside the standardization
+  window itself for roughly the first year of usable output.
+
+- **No predictive claim.** The map measures realized flow — money that has already
+  moved. It has never been tested against forward returns; there is no backtest, no
+  information coefficient, no hit rate anywhere in this repo. Nothing here should be
+  read as a return signal.
+
+- **Reporting lag.** N-PORT filings become public roughly 60 days after each fiscal
+  quarter end, and they arrive in quarterly waves — three new months land at once,
+  rather than one arriving each month. The panel therefore trails the calendar by
+  between two and five months depending on where in the cycle you look: it ends at
+  March 2026 as of August 2026, with April through June due when the June-quarter wave
+  posts around the end of August.

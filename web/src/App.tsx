@@ -16,7 +16,8 @@ export default function App() {
           <p className="tagline">
             Where investor capital is actually moving across the eleven US equity
             sectors: monthly net fund flows reconstructed from SEC N-PORT filings,
-            stripped of price moves.
+            stripped of price moves. Filings post roughly 60 days after each fiscal
+            quarter end, so this board shows a closed month, not live data.
           </p>
         </div>
         <span className="asof">as of {fmtMonth(data.as_of)} · provisional</span>
